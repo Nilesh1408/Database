@@ -1,0 +1,437 @@
+-- set pagesize 80
+-- set linesize 80
+-- set sqlformat ansiconsole
+-- set sqlformat
+-- alter session set nls_date_format = 'YYYY-MM-DD';
+
+column c_id          format 99999
+column customer_name format a15
+
+--  Create the duplicate table with data
+Create table emp1 as Select * from employees;
+
+-- Create the table structure duplicate to another table.
+Create table emp2 as Select * from employees where 1=2;
+
+-------------
+---- Join ---
+-------------
+-- Cross join (cartesian)
+SELECT * FROM EMPLOYEES , DEPARTMENTS;
+
+-- Implicit Inner Join: Selects records that have matching values in both tables.
+SELECT first_name, last_name, order_date, amount FROM customers, orders WHERE customers.id = orders.customer_id;
+
+-- Explicit Inner Join (recommended): Selects records that have matching values in both tables.
+SELECT first_name, last_name, order_date, amount FROM customers INNER JOIN orders ON customers.id = orders.customer_id;
+
+-- LEFT/RIGHT JOIN: returns all records from the left table (table1), and the matched records from the right table (table2). The result is NULL from the right side, if there is no match.
+SELECT first_name, last_name, IFNULL(SUM(amount), 0) AS total_spent -- if amount is NULL, change it to 0
+FROM customers LEFT JOIN orders ON customers.id = orders.customer_id GROUP BY customers.id ORDER BY total_spent;
+
+
+-- send output to a file
+spool emp1.csv
+select * from emp1;
+spool off
+
+-- with clause 
+with a as (select to_date('11-08-1994','dd-mm-yyyy') d from dual)
+select d , last_day(d), ADD_MONTHS(trunc(d,'Month'),1)-1 from a ;
+
+-------------
+-- SIVA QnA--
+-------------
+---list of values divisible by 3 that are less than 100
+select listagg(rownum*3,',') within group(order by rownum desc) from dual connect by level <=100/3;
+
+--Get Diagonal data from input table(3 column 3 rows)
+select rownum,decode(rownum,1,c1,2,c2,3,c3)c from t;
+
+-- to check No of record affected by query ?
+begin 
+ update student set total_marks = total_marks + 33 WHERE total_marks = 699 ;
+ IF SQL%ROWCOUNT = 1 THEN 
+    DBMS_OUTPUT.PUT_LINE( ' Record  updated : ' || SQL%ROWCOUNT); 
+    COMMIT ;
+    ELSE 
+    DBMS_OUTPUT.PUT_LINE( ' Record  updated : ' || SQL%ROWCOUNT);
+    ROLLBACK  ;
+ END IF;
+END;
+/
+
+-- to count number of occurrences of a vowels(emp table)
+WITH ds AS (SELECT empno, upper(ename) ename,length(ename) l FROM emp)
+SELECT * FROM (SELECT empno,ename,c,COUNT(*) cnt
+FROM(SELECT empno, ename,substr(ename, r, 1) c FROM ds,LATERAL ( SELECT ROWNUM r FROM dual CONNECT BY level <= l))
+WHERE c IN ('A','E','I','O','U') GROUP BY empno,ename,c) PIVOT ( MAX ( cnt ) FOR c IN ( 'A','E','I','O','U' ));
+
+-- to summarize data(date,char)
+select distinct v, min(d) over(partition by c)d , count(c) over(PARTITION by c) cnt
+from( select d,v,sum(c) over(order by d) c
+from ( select d,v,case when v <> nvl(lag(v,1) over(order by d),v) then 1 else 0 end c from t))order by 2;
+
+-- to find max value across row and column(c1,c2,c3)
+select max(greatest(c1,c2,c3)) col_value from t;
+
+-- Group employees into teams (ENAME,CITY)
+WITH d AS (SELECT ename,city,ceil(ROW_NUMBER() OVER(PARTITION BY city ORDER BY ROWNUM) / 2) t FROM team)
+SELECT city, listagg(ename, ',') team_members, 'Team'|| ROW_NUMBER() OVER(ORDER BY city) team_name
+FROM d GROUP BY city,t ORDER BY 3;
+
+-- Emp Hiearchical data in Flat format(emp table)
+select regexp_substr(EMPNO_LIST, '\w+', 1, 1) L1_MGR,
+       regexp_substr(ENAME_LIST, '\w+', 1, 1) L1_MGR,1 LV1,
+    regexp_substr(EMPNO_LIST, '\w+', 1, 2) L2_MGR,
+    regexp_substr(ENAME_LIST, '\w+', 1, 2) L2_MGR,
+    case when regexp_substr(EMPNO_LIST, '\w+', 1, 2) is not null then 2 end LV2,       
+    regexp_substr(EMPNO_LIST, '\w+', 1, 3) L3_MGR,
+    regexp_substr(ENAME_LIST, '\w+', 1, 3) L3_MGR,
+    case when regexp_substr(EMPNO_LIST, '\w+', 1, 3) is not null then 3 end LV3,
+    regexp_substr(EMPNO_LIST, '\w+', 1, 4) L4_MGR,
+    regexp_substr(ENAME_LIST, '\w+', 1, 4) L4_MGR,
+    case when regexp_substr(EMPNO_LIST, '\w+', 1, 4) is not null then 4 end LV4,
+    regexp_substr(EMPNO_LIST, '\w+', 1, 5) L5_MGR,
+    regexp_substr(ENAME_LIST, '\w+', 1, 5) L5_MGR,
+    case when regexp_substr(EMPNO_LIST, '\w+', 1, 5) is not null then 5 end LV5                            
+from (select trim(',' from sys_connect_by_path(ename,',')) ename_list,trim(',' from sys_connect_by_path(empno,',')) empno_list,
+CONNECT_BY_ISLEAF ISLEAF from emp start with mgr is null connect by prior empno=mgr) where ISLEAF=1;
+
+-- Delete duplicate records 
+delete from emp_t where rowid not in ( select max(rowid) from emp_t group by EMPNO, ENAME, JOB, SAL, DEPTNO);
+
+-- compound trigger to avoid mutating trigger(emp table)
+-- Convert Column to Rows
+select STUDENT, max(decode(SUBJECT,'Science',STUDENT)) Science, max(decode(SUBJECT,'math',STUDENT)) math, max(decode(SUBJECT,'eng',STUDENT)) eng
+from stu_table group by STUDENT order by student;
+
+-- PLSQL block to print the list of employee names
+-- Cursor , collection
+-- convert list of numbers into table format
+select  max(case when mod(d,5)=1 then d end) c1, max(case when mod(d,5)=2 then d end) c2, max(case when mod(d,5)=3 then d end) c3,max(case when mod(d,5)=4 then d end) c4,max(case when mod(d,5)=0 then d end) c5
+from t group by ceil(d/5) order by ceil(d/5);
+
+-- find the consecutive numbers(c)
+select c from ( select  c,count(1) over(partition by c-rownum) g from t ) where g > 1;
+
+-- to find group range of Sequence Numbers(n number)
+select min(c) start_range,max(c) end_range from t group by c-rownum order by 1;
+
+-- to print sequence no from given range of data(n int, m int)
+SELECT DISTINCT (LEVEL + START_RANGE)-1 NUM FROM T CONNECT BY (LEVEL +START_RANGE ) <= END_RANGE+1 ORDER BY NUM;
+
+-- to group sequential range of data into single row of data(name,startyear,endyear)
+with r as (select distinct name,start_year+r year from cars,
+lateral(select rownum-1 r  from dual connect by level <=end_year-start_year+1) order by 1,2)
+select name,min(year) s_year,max(year) e_year from r group by name,year-rownum;
+
+-- Expand and Fill the missing dates with last not null value(date , amount)
+with d1 as ( select min(dt) mi,max(dt) mx, max(dt)-min(dt) num from tx_data), dt_range 
+        as (select level-1+mi dt from d1 connect by level <=num+1)
+             select dt_range.dt, last_value(amnt ignore nulls) over(order by dt_range.dt) amnt
+from dt_range left outer join tx_data on (dt_range.dt = tx_data.dt) order by 1;
+
+-- to get combination of all the given values(t1,t2)
+with t as (select c from t1 union select c from t2)
+           select distinct least(a1.c,a2.c), greatest(a1.c,a2.c) output
+from t a1, t a2 where a1.c <> a2.c order by 1;
+
+-- Grade based on employee salary (case/decode)
+select EMPNO, ENAME, SAL, decode(ceil(SAL/1000),1,'A',2,'B','C'),
+                          case when sal >0 and sal <=1000 then 'A'
+                               when sal >1000 and sal <=2000 then 'B'
+                               else 'C' 
+                               end grade
+from emp_t;
+
+-- last two recharge amount for each customer(date , name , amount)
+select RECHARGE_DATE, CUST_NAME, RECHARGE_AMOUNT,
+decode(rank() over(partition by cust_name order by Recharge_Date desc ),1,RECHARGE_AMOUNT,2,RECHARGE_AMOUNT) last_two_recharge_amount,
+case when rank() over(partition by cust_name order by Recharge_Date desc ) in(1,2) then RECHARGE_AMOUNT end
+from recharge_detail order by CUST_NAME,RECHARGE_DATE;
+
+-- Insert two rows from one table into single row of another table
+insert into emp2
+with d as (select empno,ename,round(count(1) over()/2) - (row_number() over(order by empno)) r from emp1),
+     d1 as (select empno,ename,r from d where r >=0),
+     d2 as (select empno,ename,abs(r) r from d where r <0)
+select d1.empno,d1.ename,d2.empno,d2.ename from d1 left outer join d2 on (d1.r = d2.r) order by d1.r desc;
+
+-- Reverse the String without using reverse function
+WITH t AS (SELECT 'WELCOME TO SQL CLASS' d FROM dual ) 
+SELECT LISTAGG(s) WITHIN GROUP(ORDER BY l DESC) FROM(SELECT level l,substr(d,level,1) s FROM t CONNECT BY level <= length(d) );
+    
+-- Sort the NUMBERS in the comma separated list
+select regexp_substr('A,BB,CCC,DDDD','[^,]+',1,1) from dual;
+
+-- Find the list of combinations, where any roll value is equal to sum of other two rolled values
+with t as (select level r from dual connect by level<=6)
+select t1.r as ROLL1, t2.r as ROLL2, t3.r as ROLL3  from t t1, t t2, t t3
+where (t3.r = t1.r+t2.r or t2.r = t1.r+t3.r or t1.r = t2.r+t3.r) order by 3 desc;
+
+-- Python Script to call the procedure
+import cx_Oracle as orcl
+con = orcl.connect('DEVUSER2/devuser2@ORCLPDB')
+cur = con.cursor()
+refcur = con.cursor()
+cur.callproc("get_emp_list_as_refcur", (10,refcur,))
+print("Printing the values from REFCURSOR:")
+for row in refcur:
+    print(row)
+cur.close()  # Close the Cursor
+con.close()  # Close the Connection
+
+-- to print Cricket Dashboard(match , team 1 , team 2 , winner)
+select matches_played.team_name, no_of_matches_played,nvl(no_of_matches_won,0) matches_won,no_of_matches_played-nvl(no_of_matches_won,0) matches_lost
+from (select team_name, sum(cnt) as no_of_matches_played 
+from ( select TEAM_A team_name,count(*) cnt from cricket group by TEAM_A
+      union all
+     select TEAM_b,count(*) from cricket group by TEAM_b)
+     group by team_name) matches_played, 
+    (select winner team_name,count(*) no_of_matches_won from cricket group by winner)matches_won
+where matches_played.team_name = matches_won.team_name(+);
+
+
+-- to print all the dates of a month
+with d as ( select to_date('01/01/2019','DD/MM/YYYY') as dt from dual)
+select c_date,trim(to_char(c_date,'DY')) day,
+       to_char(c_date,'W') week_of_month,
+       to_char(c_date,'WW') week_of_year
+from ( select trunc(d.dt,'MONTH')+level-1 c_date from d
+connect by level <=trunc(last_day(d.dt)) -trunc(d.dt,'MONTH')+1) order by c_date;
+
+-- to find the number of saturday and sunday between two given dates
+SELECT TO_CHAR(c_date,'DAY') day, COUNT(*)
+FROM (SELECT trunc(to_date('01/01/2019','DD/MM/YYYY')) + ( level - 1 ) c_date FROM dual
+      CONNECT BY level <= trunc(to_date('31/12/2019','DD/MM/YYYY')) - trunc(to_date('05/05/2019','DD/MM/YYYY')) + 1)
+WHERE TO_CHAR(c_date,'DY') IN ('SAT','SUN') GROUP BY TO_CHAR(c_date,'DAY');
+/* --------Gather statistics---------------------- */
+call dbms_stats.gather_schema_stats(USER);
+
+--SBI Project
+---1. show the customer name who has the maximum balance----
+select current_blance,customer_name from ACCOUNT as a join CUSTOMER as c on (a.customer_id=c.customer_id) where current_blance=(select max(current_blance) from ACCOUNT);
+
+---2.show branch names which have most transaction amount ---
+select branch_name , sum(amount) as maxamount from TRANSACTIONS as t join BRANCH as b on(b.branch_id=t.branch_id) group by branch_name;
+
+---3.show customers and amount  who withdrawed  money from branch name dutchbangla  ---
+select customer_name,amount from ACCOUNT as a join CUSTOMER as c on(c.customer_id=a.customer_id) join TRANSACTIONS as t on (a.account_id=t.account_id) join BRANCH as b on (b.branch_id=t.branch_id) where branch_name='dutchbangla'
+
+----4. how many times each customer withdraw money ---
+select customer_name,count(amount) as totaltransaction from ACCOUNT as a join CUSTOMER as c on(c.customer_id=a.customer_id) join TRANSACTIONS as t on (a.account_id=t.account_id) group by customer_name
+
+-----5.show average withdraw amount from each branch-----
+select branch_name , avg(amount) as avgamount from TRANSACTIONS as t join BRANCH as b on(b.branch_id=t.branch_id) group by branch_name
+
+------6.show branches who have average withdraw amount greater than average withdraw amount of the whole bank  ----
+select branch_name , avg(amount) as avgamount from TRANSACTIONS as t join BRANCH as b on(b.branch_id=t.branch_id) group by branch_name
+having avg(amount) > ( select avg(amount)  from TRANSACTIONS as t join BRANCH as b on(b.branch_id=t.branch_id) );
+
+----7. show branch name which has maximum avarage transaction----
+select branch_name , avg(amount) as avgamount from TRANSACTIONS as t join BRANCH as b on(b.branch_id=t.branch_id)
+group by branch_name having avg(amount) = ( select max(avgamount) from (select branch_name , avg(amount) as avgamount from TRANSACTIONS as t join BRANCH as b on(b.branch_id=t.branch_id)
+group by branch_name) as maxavg  );
+
+---8.which customer made most number of withdraw ----
+select customer_name,count(amount) as totaltransaction from ACCOUNT as a join CUSTOMER as c on(c.customer_id=a.customer_id) join TRANSACTIONS as t on (a.account_id=t.account_id)
+group by customer_name having count(amount) = ( select max(totaltransaction) from
+(select customer_name,count(amount) as totaltransaction from ACCOUNT as a join CUSTOMER as c on(c.customer_id=a.customer_id) join TRANSACTIONS as t on (a.account_id=t.account_id) group by customer_name) as maxtra  )
+
+----9.show current balance of customers who opend an account after 2015 ------
+select current_blance,customer_name, date_opened from ACCOUNT as a join CUSTOMER as c on (a.customer_id=c.customer_id) where year(date_opened)= 2015
+
+----10.show customers who opend account on friday and on march-----
+select current_blance,customer_name, date_opened from ACCOUNT as a join CUSTOMER as c on (a.customer_id=c.customer_id)
+where datename(dw,date_opened)= 'friday' and datename(MONTH,date_opened)= 'march'
+
+-------------------------------------------------------- Inline Views-----------------------------------
+select Department_Name, count(*), to_char((count(*)/No_of_Employees.cnt)*100, '90.99') Percentages from Department,Employee, ( select count(*) cnt from Employee ) No_of_Employees
+where Department.Department_Id = Employee.Department_Id group by Department_Name, No_of_Employees.cnt;
+
+-------------------------------------------------------------------
+-- Materialized Views (Number of Employees with different degrees)
+-------------------------------------------------------------------
+create materialized view Education_View
+build immediate
+refresh on commit
+as select Degree, count(Degree) from Education group by Degree;
+     
+------------------------------------------------------
+-- pragma exception_init
+------------------------------------------------------
+set define '&'
+prompt 'Enter a Department_Id : '
+accept Employee_Id number
+
+declare
+null_violated_exception exception;
+pragma exception_init(null_violated_exception , -1400);
+
+begin
+INSERT INTO EMPS_Employee(Employee_Id,First_Name, Last_Name, Hire_Date, City, State) VALUES ('&Employee_Id','Ojas','Phansekar',to_date('14-APR-16', 'dd-MON-yyyy'),'New York City','New York',1);
+
+exception
+when null_violated_exception then
+dbms_output.put('ERROR! You entered an invalid column name ');
+dbms_output.put_line('Please check your table definition and try again');
+end;
+/
+
+declare
+invalid_create_statement exception;
+pragma exception_init(invalid_create_statement, -901);
+
+l_update_text varchar2(100) := 'create &table_name (id NUMBER Desc VARCHAR2(50));'
+
+begin
+execute immediate l_update_text using '&table_name';
+exception
+when invalid_create_statement then
+dbms_output.put('ERROR! You entered an invalid column name ');
+dbms_output.put_line('Please check your table definition and try again');
+end;
+/
+-------------------------------------- User Defined EXCEPTION --------------------------------------
+declare
+salary_lower exception;
+salary_highest exception;
+begin
+	for x in (select Gross_Salary from Salary) 
+    loop
+		dbms_output.put('Account_Id' || );
+		dbms_output.put_line('Please enter a number');	
+	end loop;
+	
+	dbms_output.put_line('The Salary is perfect');
+	
+exception 
+	when VALUE_ERROR then
+		dbms_output.put_line('Please enter a number');
+	when salary_lower then
+		dbms_output.put_line('Salary is lower');
+	when salary_highest then 
+		dbms_output.put_line('Salary is higher');
+end;
+/
+			
+--------------------------------------- Ref Cursor ---------------------------------------
+declare
+type emp_dept_rec is record(Employee_Id number,First_Name varchar2(66),Department_Name varchar2(37));
+type emp_dept_refcur_type is ref cursor return emp_dept_rec;
+ employee_refcur emp_dept_refcur_type;
+ emp_dept emp_dept_rec;
+begin
+	open employee_refcur for select e.Employee_Id, e.First_Name || ' ' || e.Last_Name "Employee Name", d.Department_Name from EMPS_Employee e, EMPS_Department d where e.Department_Id = d.Department_Id and rownum < 5 order by e.Employee_Id;	 
+	fetch employee_refcur into emp_dept;
+	while employee_refcur%FOUND 
+    loop
+		dbms_output.put(emp_dept.First_Name || '''s department is ');
+		dbms_output.put_line(emp_dept.Department_Name);
+		fetch employee_refcur into emp_dept;
+	end loop;
+end;
+/
+------------------------------------------------------Pre-defined EXCEPTION------------------------------------------------------
+declare 
+	l_attendance EMPS_Attendance%rowtype;
+	New_Exception exception;
+begin
+	l_attendance.Attendance_Id := 90;
+	l_attendance.Hours_Worked := 'AS';
+	insert into EMPS_Attendance (Attendance_Id,Hours_Worked)
+	values ( l_attendance.Attendance_Id, l_attendance.Hours_Worked );
+exception 
+	when VALUE_ERROR then
+		dbms_output.put_line('We encountered the VALUE_ERROR exception');
+end;
+/
+declare
+type emp_dept_rec is record(
+	Employee_Id number,
+	First_Name varchar2(66),
+	Department_Name varchar2(37)
+	);
+	
+	type emp_dept_refcur_type is ref cursor
+		return emp_dept_rec;
+		
+	employee_refcur emp_dept_refcur_type;
+	
+	emp_dept emp_dept_rec;
+begin
+	open employee_refcur for
+		select e.Employee_Id,
+			   e.First_Name || ' ' || e.Last_Name "Employee Name",
+			   d.Department_Name
+		from Employee e, Department d
+		where e.Department_Id = d.Department_Id
+		and rownum < 5
+		order by e.Employee_Id;
+    		
+	fetch employee_refcur into emp_dept;
+	while employee_refcur%FOUND loop
+		dbms_output.put(emp_dept.First_Name || '''s department is ');
+		dbms_output.put_line(emp_dept.Department_Name);
+		fetch employee_refcur into emp_dept;
+		
+		open employee_refcur for
+		select e.Employee_Id,
+			   e.First_Name || ' ' || e.Last_Name "Employee Name",
+			   d.Department_Name
+		from Employee e, Department d
+		where e.Department_Id = d.Department_Id
+		and rownum < 5
+		order by e.Employee_Id;
+	exception 
+		when CURSOR_ALREADY_OPEN then
+			dbms_output.put_line('No Need to open cursor again');
+	end loop;
+	
+end;
+/
+----------------------
+declare
+	  cursor salaries(p_hourly in number)
+	  is select * 
+	  from Salary
+	  where Hourly_Pay=p_hourly;
+	  
+	  l_sal Salary%rowtype;
+	  begin
+	   dbms_output.put_line('Getting hourly pay');
+	   open salaries(30);
+	   loop
+	    fetch salaries into l_sal;
+		exit when salaries%notfound;
+		dbms_output.put('For Account ' || l_sal.Account_Id || ' Hourly Pay is ');
+        dbms_output.put_line(l_sal.hourly_pay);
+		end loop;
+		open salaries(30);
+		exception
+		when CURSOR_ALREADY_OPEN then
+		dbms_output.put_line('No Need to open cursor again');
+		close salaries;
+       end;
+      /
+
+DECLARE
+   exp exception; 
+   pragma exception_init (exp, -20015); 
+   n int:=110; 
+  
+BEGIN 
+  FOR i IN (select e.Employee_Id from Employee e) LOOP 
+    dbms_output.put_line(i.Employee_Id); 
+         IF n !=  THEN
+            RAISE exp; 
+         END IF; 
+   END LOOP; 
+  
+EXCEPTION 
+   WHEN exp THEN
+      dbms_output.put_line('Value Error'); 
+  
+END;
+---------------------------------------------------------------------------------------------
