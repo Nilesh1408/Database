@@ -1,0 +1,219 @@
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace FUNCTION bank_AVG_BALANCE RETURN NUMBER IS
+---------AVERAGE ASSET CALCULATING OF ALL BRANCH-------------
+   B_ASSET          NUMBER(12);
+BEGIN
+  SELECT AVG(ASSET) INTO B_ASSET
+  FROM bank_BRANCH;
+   RETURN B_ASSET;
+END;
+
+/*
+SET SERVEROUTPUT ON
+BEGIN
+	dbms_output.put_line('Average balance: ' || bank_AVG_BALANCE);
+END;
+*/
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace FUNCTION circle_area (radius NUMBER) 
+        RETURN NUMBER IS
+            pi CONSTANT NUMBER(7,2) :=	3.141;
+            area NUMBER(7,2); BEGIN
+            area := pi * (radius * radius);
+            RETURN area; 
+        END;
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace FUNCTION fn_add(P1 number , P2 number) RETURN NUMBER AS 
+V1 NUMBER;
+ V2 NUMBER;
+BEGIN
+ V1 := P1+P2; 
+ V2 := 1/0;
+ RETURN V1;
+
+EXCEPTION WHEN OTHERS THEN
+ DBMS_OUTPUT.PUT_LINE('ZERO DIVIDE ERROR');
+ RETURN V2;
+END;
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace function getArea (i_rad NUMBER)
+return NUMBER is v_pi NUMBER:=3.14;
+begin
+   return v_pi * (i_rad ** 2);
+end;
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace FUNCTION get_sal (p_id IN employees.employee_id%TYPE) 
+ RETURN NUMBER IS 
+ v_sal employees.salary%TYPE := 0; 
+BEGIN 
+ SELECT salary INTO v_sal FROM employees WHERE employee_id = p_id; 
+ RETURN v_sal; 
+EXCEPTION 
+ WHEN NO_DATA_FOUND THEN RETURN NULL;
+END get_sal;
+
+/*
+--Function With a Parameter:
+DECLARE v_sal employees.salary%type;
+BEGIN v_sal := get_sal(100); 
+DBMS_OUTPUT.PUT_LINE(get_sal(100));
+END;
+--SELECT job_id, get_sal(employee_id) FROM employees;
+*/
+
+/*
+--Invoking Functions Without Parameters
+DECLARE v_today DATE;
+BEGIN v_today := SYSDATE; 
+END;
+*/
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace function sbi_customer_info(a_id NUMBER) return SYS_REFCURSOR AS
+
+my_cursor SYS_REFCURSOR;
+BEGIN
+
+	open my_cursor for  select name,PHONE from sbi_ACCOUNTS ac
+                      join sbi_CUSTOMER c on (ac.customer_id=c.customer_id) where account_id=a_id;
+
+	return my_cursor;
+
+END;
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace function sbi_e_login(f_name VARCHAR2, f_password VARCHAR2) return SYS_REFCURSOR AS
+
+my_cursor SYS_REFCURSOR;
+BEGIN
+
+	open my_cursor for  select USERNAME,U_PASSWORD from sbi_EMP_LOGIN 
+  where USERNAME=f_name and U_PASSWORD=f_password ;
+
+	return my_cursor;
+
+END;
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace function sbi_get_current_amount(a_id number) return number AS
+
+current_amount NUMBER;
+BEGIN
+
+	select current_balance into current_amount  from sbi_accounts where account_id=a_id;
+
+	return current_amount;
+END;
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace function sbi_get_transaction(a_id number) return SYS_REFCURSOR AS
+
+my_cursor SYS_REFCURSOR;
+BEGIN
+
+	open my_cursor for  select TRANSACTION_ID,BRANCH_ID,DATE_OF_TRANSACTION,AMOUNT,ACTION from sbi_TRANSACTION 
+  where ACCOUNT_ID= a_id order by date_of_transaction desc;
+	return my_cursor;
+
+END;
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace FUNCTION tax(p_value IN NUMBER) 
+ RETURN NUMBER IS 
+BEGIN 
+ RETURN (p_value * 0.08); 
+END tax;
+/*
+Function in SQL Expressions
+SELECT employee_id, last_name, salary, tax(salary)FROM employees WHERE department_id = 50;
+*/
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace function TEST_favorite_list_to_coll_type (
+   p_favorite_list   in TEST_customer_favorites.favorite_list%type
+)
+   return TEST_favorite_coll_type pipelined
+is
+   v_from_pos  pls_integer;
+   v_to_pos    pls_integer;
+begin
+   if p_favorite_list is not null then
+      v_from_pos := 1;
+      loop
+         v_to_pos := instr(p_favorite_list, ',', v_from_pos);
+         pipe row (to_number(
+            substr(
+               p_favorite_list
+             , v_from_pos
+             , case v_to_pos
+                  when 0 then length(p_favorite_list) + 1
+                         else v_to_pos
+               end - v_from_pos
+            )
+         ));
+         exit when v_to_pos = 0;
+         v_from_pos := v_to_pos + 1;
+      end loop;
+   end if;
+end TEST_favorite_list_to_coll_type;
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+create or replace function TEST_name_coll_type_to_varchar2 (
+   p_name_coll    in TEST_name_coll_type
+ , p_delimiter    in varchar2 default null
+)
+   return varchar2
+is
+   v_name_string  varchar2(4000 char);
+begin
+   for idx in p_name_coll.first..p_name_coll.last
+   loop
+      if idx = p_name_coll.first then
+         v_name_string := p_name_coll(idx);
+      else
+         v_name_string := v_name_string
+                       || p_delimiter
+                       || p_name_coll(idx);
+      end if;
+   end loop;
+   return v_name_string;
+end TEST_name_coll_type_to_varchar2;
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------#
