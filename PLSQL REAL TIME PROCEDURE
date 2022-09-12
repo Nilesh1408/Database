@@ -1,0 +1,1508 @@
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE AADHAAR_UPDATION 
+(
+  P_AADHAAR_NUMBER IN NUMBER 
+, P_NAME IN VARCHAR2 
+, P_ADDRESS IN VARCHAR2 
+, P_MOBILE_NUMBER IN NUMBER 
+, P_EMAIL IN VARCHAR2 
+, P_STATUS OUT VARCHAR2 
+) AS 
+
+BEGIN
+ UPDATE AADHAAR_DETAILS SET NAME=P_NAME,ADDRESS=P_ADDRESS,MOBILE_NUMBER=P_MOBILE_NUMBER,EMAIL=P_EMAIL
+ WHERE AADHAAR_NUMBER=P_AADHAAR_NUMBER;
+ IF SQL%FOUND THEN
+ COMMIT;
+ P_STATUS :='AADHAAR DETAILS ARE UPDATED SUCCESSFULLY. ';
+ ELSE
+ ROLLBACK;
+ P_STATUS :='ERROR IN SERVER, PLEASE TRY AFTERSOMETIME. ';
+ END IF;
+END AADHAAR_UPDATION;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE add_dept IS 
+ v_dept_id departments.department_id%TYPE; 
+ v_dept_name departments.department_name%TYPE;
+BEGIN 
+ v_dept_id := 280; 
+ v_dept_name := 'ST-Curriculum'; 
+ INSERT INTO departments(department_id, department_name) VALUES(v_dept_id, v_dept_name); 
+ DBMS_OUTPUT.PUT_LINE('Inserted '|| SQL%ROWCOUNT || ' row.');
+END;
+
+--EXCE ADD_DEPT;
+--Passing by named notation : add_dept (p_loc=>1400, p_name=>'EDUCATION');
+--Passing by positional notation : add_dept ('EDUCATION', 1400);
+--Passing by combination notation : add_dept ('EDUCATION', p_loc=>1400);
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE add_job_history
+  (  p_emp_id          job_history.employee_id%type
+   , p_start_date      job_history.start_date%type
+   , p_end_date        job_history.end_date%type
+   , p_job_id          job_history.job_id%type
+   , p_department_id   job_history.department_id%type
+   )
+IS
+BEGIN
+  INSERT INTO job_history (employee_id, start_date, end_date,
+                           job_id, department_id)
+    VALUES(p_emp_id, p_start_date, p_end_date, p_job_id, p_department_id);
+END add_job_history;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE AM_DFWECONOMYPASSENGERS AS 
+-- Stored Procedure for Details of economy class passengers with destination DFW'--
+CURSOR ECOPASSDETAILS is
+select al.AL_NAME,fl.FLIGHT_CODE,p2.FNAME,p2.LNAME,p2.PASSPORTNO,t.CLASS,t.DATE_OF_TRAVEL,t.DESTINATION,t.SOURCE,t.SEATNO,t.TICKET_NUMBER 
+from AM_Airline al,AM_Flight fl,AM_PASSENGER1 p1,AM_PASSENGER2 p2 ,AM_PASSENGER3 p3,AM_TICKET1 t
+where al.AIRLINEID = fl.AIRLINEID
+and  p1.PID= p3.PID
+and  p1.PASSPORTNO =p2.PASSPORTNO
+and fl.FLIGHT_CODE = p3.FLIGHT_CODE
+and t.PASSPORTNO = p2.PASSPORTNO
+and t.CLASS='ECONOMY' and t.DESTINATION='DFW';
+
+PASSDETAILS ECOPASSDETAILS%rowtype;
+
+BEGIN
+ Open ECOPASSDETAILS ;
+   LOOP
+    fetch ECOPASSDETAILS into PASSDETAILS;
+     EXIT WHEN ECOPASSDETAILS%NOTFOUND;
+     dbms_output.put_line (PASSDETAILS.AL_NAME || '  ' || PASSDETAILS.FLIGHT_CODE || '  ' || PASSDETAILS.FNAME || '  ' || PASSDETAILS.LNAME|| '  ' ||PASSDETAILS.PASSPORTNO || '  ' || PASSDETAILS.CLASS || '  ' || PASSDETAILS.SOURCE || '  ' || PASSDETAILS.SEATNO || '  ' || PASSDETAILS.TICKET_NUMBER);
+    END LOOP;
+  close ECOPASSDETAILS;
+END AM_DFWECONOMYPASSENGERS;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE AM_FLIGHTSBYSTATUS ( IN_STATUS IN VARCHAR2 )
+-- Stored Procedure for flight details by status --
+AS 
+ 
+CURSOR fSTATUS is
+select  distinct f.FLIGHT_CODE ,al.AL_NAME ,f.ARRIVAL,f.departure,f.SOURCE,f.DESTINATION,f.STATUS,f.FLIGHTTYPE 
+from AM_Airline al ,AM_Airport ap,AM_flight f
+where al.AIRLINEID=f.AIRLINEID
+and  f.STATUS =IN_STATUS;
+
+FlightStatus fSTATUS%rowtype;
+
+BEGIN
+  Open fSTATUS ;
+   LOOP
+    fetch fSTATUS into FlightStatus;
+     EXIT WHEN fSTATUS%NOTFOUND;
+   dbms_output.put_line (FlightStatus.FLIGHT_CODE || '  ' || FlightStatus.AL_NAME || '  ' || FlightStatus.ARRIVAL || '  ' || FlightStatus.departure|| '  ' ||FlightStatus.Source || '  ' || FlightStatus.DESTINATION || '  ' || FlightStatus.STATUS || '  ' || FlightStatus.FLIGHTTYPE);
+
+    END LOOP;
+     close fSTATUS;
+END AM_FLIGHTSBYSTATUS;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE bank_ADD_INTEREST(TEMP_ACCOUNT_NO bank_ACCOUNT.ACCOUNT_NO%TYPE) IS
+--PROCEDURE FOR ADDING 15% INTEREST -
+L_DATE      DATE;
+L_BALANCE   NUMBER(12);
+BEGIN
+
+	SELECT LAST_TRANSACTION, BALANCE  INTO L_DATE, L_BALANCE FROM bank_ACCOUNT WHERE ACCOUNT_NO=TEMP_ACCOUNT_NO;
+
+	UPDATE bank_ACCOUNT SET BALANCE = L_BALANCE + (L_BALANCE*.15) WHERE ACCOUNT_NO=TEMP_ACCOUNT_NO;
+	DBMS_OUTPUT.PUT_LINE (' BALANCE = ' || L_BALANCE);
+
+END;
+/*
+BEGIN
+	ADD_INTEREST(123450);
+END;
+*/
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE BB_NOMINATED_C 
+(
+  P_LANG IN VARCHAR2 
+, P_SEASON IN NUMBER 
+, P_WEEK IN NUMBER 
+, P_RESULT OUT SYS_REFCURSOR 
+) AS 
+L_C_ID NUMBER;
+L_C_NAME VARCHAR2(200);
+BEGIN
+  OPEN P_RESULT FOR
+  SELECT C_ID,C_NAME,NOMINATED FROM BIG_BOSS WHERE LANGUAGE=P_LANG AND SEASON=P_SEASON AND WEEK=P_WEEK AND ELIMINATED = 'N' AND NOMINATED='Y';
+/*LOOP 
+FETCH P_RESULT INTO L_C_ID,L_C_NAME;
+EXIT WHEN P_RESULT%NOTFOUND;
+DBMS_OUTPUT.PUT_LINE('CONTESTANT ID ' || L_C_ID || ' CONTESTANT NAME' || L_C_NAME);
+END LOOP;
+*/
+END BB_NOMINATED_C;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE BUS_DETAILS_DISPLAY 
+(
+  P_DOJ IN VARCHAR2 
+, P_SOURCE IN VARCHAR2 
+, P_DESTINATION IN VARCHAR2 
+, P_RESULT OUT SYS_REFCURSOR
+, BUS_DTLS_RECORD OUT BUS_DETAILS%ROWTYPE
+) AS 
+BEGIN
+  OPEN P_RESULT FOR SELECT * FROM BUS_DETAILS WHERE BUS_AVAILABILITY = 'Y' 
+  and JOURNEY_DATE = P_DOJ and SOURCE=P_SOURCE and DESTINATION=P_DESTINATION;
+  
+  LOOP 
+  FETCH P_RESULT INTO BUS_DTLS_RECORD;
+  EXIT WHEN P_RESULT%NOTFOUND;
+  DBMS_OUTPUT.PUT_LINE('Bus Operator : ' || BUS_DTLS_RECORD.BUS_OPERATOR || 
+                        ' Departure:'|| BUS_DTLS_RECORD.DEPARTURE_TIME);
+  END LOOP;
+END BUS_DETAILS_DISPLAY;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE CC_PIN_UPDATION 
+(P_CC_NO IN NUMBER , P_PIN IN NUMBER , P_MSG OUT VARCHAR2 )
+AS 
+L_COUNT NUMBER;
+L_CC VARCHAR2(100);
+L_CC_LENGTH_ERR EXCEPTION;
+L_CC_INVALID EXCEPTION;
+BEGIN
+  SELECT COUNT(*) INTO L_COUNT FROM CC_PIN_DETAILS WHERE CREDIT_CARD_NO = P_CC_NO;
+  IF LENGTH(P_PIN)=4 AND L_COUNT=1 THEN L_CC:=SUBSTR(P_CC_NO,1,4)||'XXXX'||SUBSTR(P_CC_NO,-2);
+    UPDATE cc_pin_details SET PIN = P_PIN, MODIFIED_DATE=SYSDATE,MODIFIED_BY = USER WHERE CREDIT_CARD_NO = P_CC_NO;
+    COMMIT;
+    P_MSG:='Your PIN for Credit Card '||L_CC||' has been updated successfully.';
+  ELSIF LENGTH(P_PIN)!=4 THEN RAISE L_CC_LENGTH_ERR;
+  ELSIF L_COUNT=0 THEN RAISE L_CC_INVALID;
+  END IF;
+  ------------------------------  
+  EXCEPTION
+    WHEN L_CC_LENGTH_ERR THEN P_MSG:='Length of the PIN should be 4 digit only. ';
+    WHEN L_CC_INVALID THEN P_MSG:=P_CC_NO ||' : Credit Card no is Not Valid ';
+END CC_PIN_UPDATION;
+
+/*
+declare 
+MSG varchar2(100);
+begin
+CC_PIN_UPDATION(202208030001,1234,MSG);
+DBMS_OUTPUT.PUT_LINE(MSG);
+end;
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE COUPON_VALIDATION(P_USERID IN VARCHAR2, P_COUPON IN VARCHAR2, P_Message OUT VARCHAR2) 
+AS 
+L_COUNT NUMBER;
+BEGIN
+  SELECT COUNT(1) INTO L_COUNT FROM COUPON_CODES WHERE COUPONNAME = UPPER(P_COUPON) AND STATUS ='Active';
+  IF L_COUNT=1 THEN P_Message := 'Valid Coupon';
+  ELSE P_Message := 'Not a Valid Coupon';
+  END IF;
+  
+  SELECT COUNT(1) INTO L_COUNT FROM ORDER_DETAILS 
+  WHERE USERID = P_USERID AND COUPONNAME = UPPER(P_COUPON) AND ORDEREDTIME >= SYSDATE - 2/24;
+  IF L_COUNT=1 THEN P_Message := 'Coupon Already applied. Try After 2 hours';
+  ELSE P_Message := 'Coupon applied Successfully';
+  END IF;
+  
+END COUPON_VALIDATION;
+
+/*
+Execute Procedure with Anonymous Block
+-------------------------------------
+SET SERVEROUTPUT ON
+DECLARE 
+MESSAGE VARCHAR2(200);
+BEGIN 
+COUPON_VALIDATION(100,'SWIGGYIT',MESSAGE);
+DBMS_OUTPUT.PUT_LINE(MESSAGE);
+END;
+/
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE COWIN_MEMBER_DISPLAY 
+(
+  P_PHONE IN NUMBER 
+, P_RESULT OUT SYS_REFCURSOR 
+) AS 
+BEGIN
+  OPEN P_RESULT FOR 
+  SELECT NAME, REF_ID, YEAR_OF_BIRTH ,LPAD(SUBSTR(PHOTO_ID_NUMBER,-4),LENGTH(PHOTO_ID_NUMBER),'X')
+  FROM COWIN_REGISTRATION_DETAILS WHERE PHONE=P_PHONE;
+END COWIN_MEMBER_DISPLAY;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE COWIN_REGISTRATION_PROC 
+(
+  P_PHONE IN NUMBER 
+, P_NAME IN VARCHAR2 
+, P_GENDER IN VARCHAR2 
+, P_YOB IN NUMBER 
+, P_PHOTO_ID_PROOF IN VARCHAR2 
+, P_PHOTO_ID_NUMBER IN VARCHAR2 
+, P_MSG OUT VARCHAR2 
+) AS 
+BEGIN
+  insert into COWIN_REGISTRATION_details(REF_ID,PHONE,NAME,GENDER,YEAR_OF_BIRTH,PHOTO_ID_PROOF,PHOTO_ID_NUMBER)
+                values(COWIN_REF_ID_SEQ.NEXTVAL,P_PHONE,P_NAME,P_GENDER,P_YOB,P_PHOTO_ID_PROOF,P_PHOTO_ID_NUMBER);
+  COMMIT;
+  P_MSG:='Account added successfully. Your Reference id is as follows :'||COWIN_REF_ID_SEQ.CURRVAL;
+END COWIN_REGISTRATION_PROC;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_add_card_info (
+    buyer_id      IN   VARCHAR,
+    card_id       IN   INTEGER,
+    card_number   IN   NUMBER,
+    expiry_date   IN   DATE,
+    cvv           IN   NUMBER
+) AS
+BEGIN
+    INSERT INTO ECOM_card_info VALUES (
+        card_id,
+        card_number,
+        expiry_date,
+        cvv,
+        buyer_id,
+        0
+    );
+
+END ECOM_add_card_info;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_add_contact_details (
+    user_id      IN   VARCHAR,
+    address_id   IN   INTEGER,
+    street1      IN   VARCHAR,
+    street2      IN   VARCHAR,
+    city         IN   VARCHAR,
+    state        IN   VARCHAR,
+    country      IN   VARCHAR,
+    zipcode      IN   NUMBER,
+    phone        IN   VARCHAR
+) AS
+BEGIN
+    INSERT INTO ECOM_contact_detail VALUES (
+        user_id,
+        address_id,
+        street1,
+        street2,
+        city,
+        state,
+        country,
+        zipcode,
+        phone,
+        0
+    );
+
+END ECOM_add_contact_details;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_add_product (
+    product_id        IN   INTEGER,
+    name              IN   VARCHAR,
+    seller_id         IN   VARCHAR,
+    price             IN   NUMBER,
+    category_id       IN   INTEGER,
+    description       IN   VARCHAR,
+    available_units   IN   INTEGER,
+    color             IN   VARCHAR,
+    weight            IN   NUMBER,
+    carrier_id        IN   INTEGER,
+    image_url         IN   VARCHAR
+) AS
+BEGIN
+    INSERT INTO ECOM_product VALUES (
+        product_id,
+        name,
+        seller_id,
+        price,
+        0,
+        0,
+        category_id,
+        description,
+        0,
+        available_units,
+        color,
+        1,
+        weight,
+        carrier_id
+    );
+
+    INSERT INTO ECOM_product_image VALUES (
+        product_id,
+        image_url
+    );
+
+END ECOM_add_product;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_add_to_shopping_cart (
+    buyer_id     IN   VARCHAR,
+    product_id   IN   INTEGER
+) AS
+BEGIN
+    INSERT INTO ECOM_shopping_cart VALUES (
+        buyer_id,
+        sysdate
+    );
+
+    INSERT INTO ECOM_product_shoppingcart VALUES (
+        product_id,
+        buyer_id
+    );
+
+END ECOM_add_to_shopping_cart;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_add_to_wish_list (
+    buyer_id     IN   VARCHAR,
+    product_id   IN   INTEGER
+) AS
+BEGIN
+    INSERT INTO ECOM_wish_list VALUES (
+        buyer_id,
+        sysdate
+    );
+
+    INSERT INTO ECOM_product_wishlist VALUES (
+        product_id,
+        buyer_id
+    );
+
+END ECOM_add_to_wish_list;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_cancel_membership (
+    buyer_id_input IN VARCHAR
+) AS
+BEGIN
+    UPDATE ECOM_buyer
+    SET
+        is_prime = 0,
+        prime_expiry_date = NULL
+    WHERE
+        buyer_id = buyer_id_input;
+
+END ECOM_cancel_membership;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_give_review (
+    review_id    IN   NUMBER,
+    product_id   IN   INTEGER,
+    buyer_id     IN   VARCHAR,
+    review       IN   VARCHAR,
+    rating       IN   NUMBER,
+    image_url    IN   VARCHAR
+) AS
+BEGIN
+    INSERT INTO ECOM_review VALUES (
+        review_id,
+        product_id,
+        buyer_id,
+        review,
+        rating,
+        sysdate
+    );
+
+    INSERT INTO ECOM_review_image VALUES (
+        review_id,
+        image_url
+    );
+
+END ECOM_give_review;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_place_order (
+    order_id       IN   INTEGER,
+    buyer_id_var   IN   VARCHAR
+) AS
+
+    card_id_var           INTEGER;
+    address_id_var        INTEGER;
+    total_price_var       NUMBER := 0;
+    curr_price_var        NUMBER;
+    total_qty_var         NUMBER := 0;
+    available_units_var   NUMBER(1);
+    shipping_price_var    NUMBER := 10;
+    is_prime_var          NUMBER := 0;
+    CURSOR products_cur IS
+    SELECT
+        product_id
+    FROM
+        ECOM_product_shoppingcart
+    WHERE
+        buyer_id = buyer_id_var;
+
+    product_id_var        INTEGER;
+BEGIN
+    OPEN products_cur;
+    LOOP
+        FETCH products_cur INTO product_id_var;
+        EXIT WHEN products_cur%notfound;
+        SELECT
+            price,
+            available_units
+        INTO
+            curr_price_var,
+            available_units_var
+        FROM
+            ECOM_product
+        WHERE
+            product_id = product_id_var;
+
+        IF available_units_var > 0 THEN
+            total_price_var := ( total_price_var + curr_price_var );
+            total_qty_var := total_qty_var + 1;
+            INSERT INTO ECOM_order_product VALUES (
+                order_id,
+                product_id_var
+            );
+
+        END IF;
+
+--        DELETE FROM product_shoppingcart
+--        WHERE product_id = product_id_var AND buyer_id = buyer_id_var;
+
+    END LOOP;
+
+    CLOSE products_cur;
+    SELECT
+        is_prime
+    INTO is_prime_var
+    FROM
+        ECOM_buyer
+    WHERE
+        buyer_id = buyer_id_var;
+
+    IF is_prime_var = 1 THEN
+        shipping_price_var := 0;
+    END IF;
+    SELECT
+        card_id
+    INTO card_id_var
+    FROM
+        ECOM_card_info
+    WHERE
+        buyer_id = buyer_id_var
+        AND is_default = 1;
+
+    SELECT
+        address_id
+    INTO address_id_var
+    FROM
+        ECOM_contact_detail
+    WHERE
+        user_id = buyer_id_var
+        AND is_default = 1;
+
+    total_price_var := total_price_var + shipping_price_var + 10;
+    INSERT INTO ECOM_amz_order VALUES (
+        order_id,
+        buyer_id_var,
+        card_id_var,
+        total_price_var,
+        sysdate,
+        10,
+        shipping_price_var,
+        address_id_var,
+        add_months(DATE '2019-11-28', 1),
+        'c',
+        total_qty_var
+    );
+
+END ECOM_place_order;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_populate_carriers AS
+BEGIN
+    INSERT INTO ECOM_carrier VALUES (
+        1,
+        'DHL',
+        1234567890,
+        'DHL@gmail.com'
+    );
+
+    INSERT INTO ECOM_carrier VALUES (
+        2,
+        'Fedex',
+        1234567890,
+        'Fedex@gmail.com'
+    );
+
+    INSERT INTO ECOM_carrier VALUES (
+        3,
+        'UPS',
+        1234567890,
+        'UPS@gmail.com'
+    );
+
+END ECOM_populate_carriers;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_populate_product_categories AS
+BEGIN
+    INSERT INTO ECOM_category VALUES (
+        1,
+        'Electronics'
+    );
+
+    INSERT INTO ECOM_category VALUES (
+        2,
+        'Books'
+    );
+
+    INSERT INTO ECOM_category VALUES (
+        3,
+        'Clothing'
+    );
+
+END ECOM_populate_product_categories;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_register_buyer (
+    email      IN   VARCHAR,
+    fname      IN   VARCHAR,
+    lname      IN   VARCHAR,
+    password   IN   VARCHAR
+) AS
+BEGIN
+    INSERT INTO ECOM_amz_user VALUES (
+        email,
+        fname,
+        lname,
+        password,
+        0
+    );
+
+    INSERT INTO ECOM_buyer VALUES (
+        email,
+        0,
+        NULL
+    );
+
+END ECOM_register_buyer;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_register_seller (
+    email             IN   VARCHAR,
+    fname             IN   VARCHAR,
+    lname             IN   VARCHAR,
+    password          IN   VARCHAR,
+    company_name      IN   VARCHAR,
+    url               IN   VARCHAR,
+    description_var   IN   VARCHAR
+) AS
+BEGIN
+    INSERT INTO ECOM_amz_user VALUES (
+        email,
+        fname,
+        lname,
+        password,
+        1
+    );
+
+    INSERT INTO ECOM_seller VALUES (
+        email,
+        company_name,
+        url,
+        description_var,
+        2.5,
+        0
+    );
+
+END ECOM_register_seller;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_set_default_card_info (
+    card_id_var    IN   INTEGER,
+    buyer_id_var   IN   VARCHAR
+) AS
+BEGIN
+    UPDATE ECOM_card_info
+    SET
+        is_default = 1
+    WHERE
+        buyer_id = buyer_id_var
+        AND card_id = card_id_var;
+
+END ECOM_set_default_card_info;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_set_default_contact_details (
+    contact_id   IN   INTEGER,
+    buyer_id     IN   VARCHAR
+) AS
+BEGIN
+    UPDATE ECOM_contact_detail
+    SET
+        is_default = 1
+    WHERE
+        user_id = buyer_id
+        AND address_id = contact_id;
+
+END ECOM_set_default_contact_details;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE ECOM_update_membership (
+    buyer_id_input IN VARCHAR
+) AS
+BEGIN
+    UPDATE ECOM_buyer
+    SET
+        is_prime = 1,
+        prime_expiry_date = add_months(DATE '2019-11-28', 12)
+    WHERE
+        buyer_id = buyer_id_input;
+
+END ECOM_update_membership;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace procedure EMPS_calculate_salaries(sal in number) 
+is
+l_salary NUMBER;
+
+begin
+    select count(*) into l_salary from  EMPS_Employee e inner join  EMPS_AccountDetails a on e.Employee_Id = a.Employee_Id inner join  EMPS_Salary s on a.Account_Id = s.Account_Id where s.Hourly_Pay like sal;
+    if l_salary < 2 THEN      --less employees so good to motivate by increasing there salary
+				delete from EMPS_Employee ;
+        END IF;
+--	end loop;
+END EMPS_calculate_salaries;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace procedure emps_emp_lookup( p_empno in number) 
+IS
+	o_ename emps_employee.FIRST_NAME%TYPE;
+	o_sal	emps_salary.GROSS_SALARY%TYPE;
+begin
+	select e.First_Name, s.Hourly_Pay
+		into o_ename,o_sal
+		from emps_Employee e
+		inner join emps_AccountDetails a
+		on e.Employee_Id = a.Employee_Id
+		inner join emps_Salary s
+		on a.Account_Id = s.Account_Id
+		where e.Employee_Id = p_empno and rownum = 1
+		order by s.Hourly_Pay DESC;
+	exception
+		when NO_DATA_FOUND then
+			dbms_output.put_line('Enter valid employee id');
+end emps_emp_lookup;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE EMPS_Extracting_hourly_pay(p_hourly OUT number)
+IS  
+ cursor salaries(p_hourly in number)is select * from EMPS_Salary where Hourly_Pay=p_hourly;
+ l_sal EMPS_Salary%rowtype;
+begin
+ dbms_output.put_line(' Extracting hourly pay');
+ open salaries(30);
+    loop
+	    fetch salaries into l_sal;
+		exit when salaries%notfound;
+		dbms_output.put('For Account ' || l_sal.Account_Id || ' Hourly Pay is ');
+        dbms_output.put_line(l_sal.hourly_pay);
+    end loop;
+ close salaries;
+end;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace procedure emps_salaries(sal in number) 
+is
+enames emps_Employee.First_Name%type;
+sals emps_Salary.Hourly_Pay%type;
+begin
+	loop
+		select e.First_Name, s.Hourly_Pay
+			into enames,sals
+			from emps_Employee e
+			inner join emps_AccountDetails a
+			on e.Employee_Id = a.Employee_Id	
+			inner join emps_Salary s
+			on a.Account_Id = s.Account_Id
+			where s.Hourly_Pay = sal;
+--		dbms_output.put_line(e.First_Name||':'||s.Hourly_Pay);
+end loop;
+end emps_salaries;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE EMPS_Unimportant_Locations(l_NOFEmployees IN Number)
+--Remove locations and employees
+IS
+  l_wl NUMBER;
+  l_emp NUMBER;
+
+BEGIN
+  SELECT COUNT(*) INTO l_wl FROM EMPS_Work_Location WHERE Number_Of_Employees LIKE l_NOFEmployees;
+  -- select count(*) into l_emp  from EMPS_Employee e inner join EMPS_Work_Location w on e.Employee_Id = w.Employee_Id where w.Number_Of_Employees LIKE l_NOFEmployees;
+
+  IF l_wl < 5 THEN    
+    DELETE FROM EMPS_Work_Location WHERE Number_Of_Employees = l_NOFEmployees;
+	END IF;
+
+  EXCEPTION WHEN no_data_found THEN 
+  DBMS_OUTPUT.PUT_LINE('No Such Data Available');    
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE EMPS_updating_employee_dept(emp_id IN NUMBER, dept_id IN NUMBER)
+IS  
+BEGIN
+  update EMPS_Employee set Department_Id = dept_id where Employee_Id = emp_id;
+  DBMS_OUTPUT.PUT_LINE('Updated Employee Id' || emp_id || ' for Department ID' || dept_id);
+
+EXCEPTION 
+  WHEN NO_DATA_FOUND THEN 
+  DBMS_OUTPUT.PUT_LINE('Invalid Value Error');
+  raise;
+
+END EMPS_updating_employee_dept;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE FLIPKART_FEEDBACK 
+(
+  P_ORDERID IN NUMBER 
+, P_DID IN NUMBER 
+, P_DNAME IN VARCHAR2 
+, P_RATING IN NUMBER 
+, P_COMMENTS IN VARCHAR2 
+, P_MSG OUT VARCHAR2 
+) AS 
+BEGIN
+  INSERT INTO flipkart_feedback_details(ORDER_ID,D_UID,D_UNAME,D_DATE,FEEDBACK_BY,FEEDBACK_DATE,RATING,COMMENTS)
+  VALUES(P_ORDERID,P_DID,P_DNAME,SYSDATE,USER,SYSDATE,P_RATING,P_COMMENTS);
+  COMMIT;
+  P_MSG:='Thank You for your Valuavale Feedback. ';
+END FLIPKART_FEEDBACK;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE format_phone(p_phone_no IN OUT VARCHAR2) IS
+ BEGIN p_phone_no := '(' || SUBSTR(p_phone_no, 1, 3) ||')' || SUBSTR(p_phone_no, 4, 3) ||'-' || SUBSTR(p_phone_no, 7);
+END format_phone;
+
+/*
+DECLARE
+a_phone_no VARCHAR2(13);
+BEGIN
+a_phone_no := '8006330575' ;
+format_phone(a_phone_no);
+DBMS_OUTPUT.PUT_LINE('The formatted number is: ' || a_phone_no);
+END;
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE GOLD_RATES_DAILY_CAPTURE 
+(
+  P_CITY IN VARCHAR2 
+, P_G22C IN NUMBER 
+, P_G24C IN NUMBER 
+, P_CAPTURE_DATE IN DATE 
+, P_MSG OUT VARCHAR2 
+) AS 
+L_COUNT NUMBER;
+BEGIN
+  SELECT COUNT(*)INTO L_COUNT FROM GOLD_RATES WHERE TRUNC(G_CAPTURE_DATE)=TRUNC(G_CAPTURE_DATE) AND CITY = P_CITY;
+
+IF L_COUNT=0 THEN 
+INSERT INTO GOLD_RATES(CITY,G22C,G24C,G_CAPTURE_DATE)VALUES(P_CITY,P_G22C,P_G24C,P_CAPTURE_DATE);
+P_MSG:='GOLD RATES CAPTURED SUCCESSFULLY FOR THE DAY :'||P_CAPTURE_DATE;
+COMMIT;
+ELSE 
+P_MSG:='GOLD RATES ALREADY CAPTURED FOR THE DAY :'||P_CAPTURE_DATE;
+END IF;
+END GOLD_RATES_DAILY_CAPTURE;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE GOLD_RATES_DAILY_DISPLAY 
+(
+  P_CITY IN VARCHAR2 
+, P_GOLD OUT VARCHAR2 
+, P_GOLD_DATE OUT VARCHAR2 
+, P_G22C OUT VARCHAR2 
+) AS 
+
+BEGIN
+  SELECT TO_CHAR(G_CAPTURE_DATE,'Mon DD,YYYY'), TRIM(TO_CHAR(G22C,'9,999')) INTO P_GOLD_DATE,P_G22C FROM GOLD_RATES
+  WHERE TRUNC(G_CAPTURE_DATE)=TRUNC(SYSDATE) AND CITY =P_CITY ;
+  P_G22C:='INR'||P_G22C||'/GRAM(22C)';
+  P_GOLD:='GOLD';
+
+END GOLD_RATES_DAILY_DISPLAY;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE JIOMART_CASHBACK_BAL_DETAILS 
+(
+  P_PHONE IN NUMBER 
+, P_PAYABLE_AMOUNT IN NUMBER 
+, P_CASHBACK_AMOUNT OUT VARCHAR2 
+, P_REDEEMABLE_AMOUNT OUT VARCHAR2 
+) AS 
+L_CASHBACK_AMOUNT NUMBER;
+L_REDEEMABLE_AMOUNT NUMBER;
+BEGIN
+  SELECT CASHBACK_AMOUNT INTO L_CASHBACK_AMOUNT FROM JIOMART_CASHBACK_BALANCE WHERE PHONE_NUMBER = P_PHONE;
+  P_CASHBACK_AMOUNT :='JIOMART CASHBACK BALANCE INR :'|| L_CASHBACK_AMOUNT;
+  L_REDEEMABLE_AMOUNT:= ROUND(P_PAYABLE_AMOUNT*(20/100),2);
+  P_REDEEMABLE_AMOUNT:= 'MAX REDEEMABLE FOR THIS TXN IS INR :'|| L_REDEEMABLE_AMOUNT;
+END JIOMART_CASHBACK_BAL_DETAILS;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE JIOMART_CASHBACK_BAL_REDMPTION 
+(
+  P_PHONE IN NUMBER 
+, P_REDEEMABLE_AMT IN NUMBER 
+, P_USER_ENTER_VALUE IN NUMBER 
+, P_MSG OUT VARCHAR2 
+) AS 
+BEGIN
+  IF P_REDEEMABLE_AMT>=P_USER_ENTER_VALUE THEN 
+  UPDATE jiomart_cashback_balance SET CASHBACK_AMOUNT = CASHBACK_AMOUNT - NVL(P_USER_ENTER_VALUE,0) 
+  WHERE PHONE_NUMBER= P_PHONE ;
+  COMMIT;
+  P_MSG:='AMOUNT REDEEMED SUCCESSFULLY';
+  ELSE
+   P_MSG:='AMOUNT CANNOT ENTER MORE THEN REDEEMED LIMIT';
+END IF;
+END JIOMART_CASHBACK_BAL_REDMPTION;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LEAVES_ROLLOVER ( P_MESSAGE OUT VARCHAR2 )
+AS 
+BEGIN
+  EXECUTE IMMEDIATE 'CREATE TABLE LEAVES_DETAILS_'|| TO_CHAR(SYSDATE,'DD_MON_YYYY_HHMISS')||' AS SELECT * FROM LEAVE_DETAILS';
+
+  UPDATE LEAVE_DETAILS SET CASUAL_LEAVES=6,SICK_LEAVES=6,EARNED_LEAVES=EARNED_LEAVES+12;
+  COMMIT;
+  
+  P_MESSAGE:= 'lEAVES UPDATED SUCCESSFULLY FOR ALL THE EMPLOYEES';
+  
+  UPDATE LEAVE_DETAILS SET CASUAL_LEAVES=6,SICK_LEAVES=6,EARNED_LEAVES=NVL(EARNED_LEAVES,0)+12;
+  COMMIT;
+  
+  P_MESSAGE:= 'lEAVES UPDATED SUCCESSFULLY FOR ALL THE EMPLOYEES';
+  
+  UPDATE LEAVE_DETAILS SET CASUAL_LEAVES=6,SICK_LEAVES=6,
+  EARNED_LEAVES = CASE WHEN NVL(EARNED_LEAVES,0)+12 > 40 THEN 40
+                    ELSE NVL(EARNED_LEAVES,0)+12 
+                    END;
+  COMMIT;
+  
+  P_MESSAGE:= 'lEAVES UPDATED SUCCESSFULLY FOR ALL THE EMPLOYEES';
+END LEAVES_ROLLOVER;
+
+/*
+Execute Procedure with Anonymous Block
+-------------------------------------
+SET SERVEROUTPUT ON
+DECLARE 
+MESSAGE VARCHAR2(200);
+BEGIN 
+LEAVES_ROLLOVER(MESSAGE);
+DBMS_OUTPUT.PUT_LINE(MESSAGE);
+END;
+/
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_addBooK(auxISBN IN VARCHAR2, auxBookID IN VARCHAR2, auxState IN VARCHAR2, auxDebyCost IN NUMBER,
+auxLostCost IN NUMBER, auxAddress IN VARCHAR2)
+IS
+BEGIN
+  INSERT INTO LIB_book
+  VALUES(auxISBN,auxBookID,auxState,'A',auxDebyCost,auxLostCost,auxAddress);
+  DBMS_OUTPUT.PUT_LINE('Book inserted correctly');
+END;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_addVideo(auxTitle IN VARCHAR2, auxYear IN INT, auxVideoID IN VARCHAR2, auxState IN VARCHAR2, auxDebyCost IN NUMBER,
+auxLostCost IN NUMBER, auxAddress IN VARCHAR2)
+IS
+BEGIN
+  INSERT INTO LIB_video
+  VALUES(auxTitle,auxYear,auxVideoID,auxState,'A',auxDebyCost,auxLostCost,auxAddress);
+  DBMS_OUTPUT.PUT_LINE('Video inserted correctly');
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_allMedia(mediaType VARCHAR2)
+IS
+  CURSOR cBooks
+  IS
+    SELECT *
+    FROM LIB_book;
+
+  CURSOR cVideos
+  IS
+    SELECT *
+    FROM LIB_video;
+
+  xBooks cBooks%ROWTYPE;
+  xVideos cVideos%ROWTYPE;
+BEGIN
+  IF mediaType LIKE 'books' THEN
+    OPEN cBooks;
+
+    DBMS_OUTPUT.PUT_LINE('ISBN     ID     STATE     AVALABILITY     DEBY_COST     LOST_COST    LOCATION');
+    DBMS_OUTPUT.PUT_LINE('-----------------------------------------------------------------------------');
+
+    LOOP
+      FETCH cBooks
+      INTO xBooks;
+      EXIT WHEN cBooks%NOTFOUND;
+
+      DBMS_OUTPUT.PUT_LINE(xBooks.isbn || '     ' || xBooks.bookid || '     ' || xBooks.state || '     ' || xBooks.avalability || '     ' || xBooks.debycost || '     ' ||
+      xBooks.lostcost || '     ' || xBooks.address);
+    END LOOP;
+  ELSIF mediaType LIKE 'videos' THEN
+    OPEN cVideos;
+    DBMS_OUTPUT.PUT_LINE('TITLE     YEAR     ID     STATE     AVALABILITY     DEBY_COST     LOST_COST    LOCATION');
+    DBMS_OUTPUT.PUT_LINE('---------------------------------------------------------------------------------------');
+    LOOP
+      FETCH cVideos
+      INTO xVideos;
+      EXIT WHEN cVideos%NOTFOUND;
+
+      DBMS_OUTPUT.PUT_LINE(xVideos.title || '     ' || xVideos.year || '     ' || xVideos.videoid || '     ' || xVideos.state || '     ' || xVideos.avalability || '     ' || xVideos.debycost || '     ' ||
+      xVideos.lostcost || '     ' || xVideos.address);
+    END LOOP;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('TYPE INCORRECT, you must choose between books or videos');
+  END IF;
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_loginCustomer(user IN VARCHAR2, pwd IN VARCHAR2)
+IS
+  pwdAux LIB_customer.password%TYPE;
+  incorrect_password EXCEPTION;
+BEGIN
+  SELECT password INTO pwdAux FROM LIB_customer WHERE username LIKE user;
+
+  IF pwdAux LIKE pwd THEN
+    DBMS_OUTPUT.PUT_LINE('User ' || user || ' loging succesfull');
+  ELSE
+    RAISE incorrect_password;
+  END IF;
+
+  EXCEPTION
+  WHEN no_data_found OR incorrect_password THEN 
+       DBMS_OUTPUT.PUT_LINE('Incorrect username or password');
+
+END;
+
+/*
+SET SERVEROUTPUT ON;
+DECLARE
+  user customer.username%TYPE;
+  pwd customer.password%TYPE;
+BEGIN
+  user := &Username;
+  pwd := &Password;
+  login_library(user,pwd);
+END;
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_loginEmployee(user IN VARCHAR2, pwd IN VARCHAR2)
+IS
+  pwdAux LIB_employee.password%TYPE;
+  incorrect_password EXCEPTION;
+BEGIN
+  SELECT password INTO pwdAux FROM LIB_employee WHERE username LIKE user;
+
+  IF pwdAux LIKE pwd THEN
+    DBMS_OUTPUT.PUT_LINE('User ' || user || ' loging succesfull');
+  ELSE
+    RAISE incorrect_password;
+  END IF;
+
+  EXCEPTION
+  WHEN no_data_found OR incorrect_password THEN 
+       DBMS_OUTPUT.PUT_LINE('Incorrect username or password');
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_removeItem(auxItemID IN VARCHAR2)
+IS
+  auxBook NUMBER;
+  auxVideo NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO auxBook
+  FROM LIB_book
+  WHERE bookid LIKE auxItemID;
+
+  SELECT COUNT(*) INTO auxVideo
+  FROM LIB_video
+  WHERE videoid LIKE auxItemID;
+
+  IF auxBook > 0 THEN
+    DELETE FROM LIB_book
+    WHERE bookid LIKE auxItemID;
+    DBMS_OUTPUT.PUT_LINE('Book removed correctly');
+  ELSIF auxVideo > 0 THEN
+    DELETE FROM LIB_video
+    WHERE videoid LIKE auxItemID;
+    DBMS_OUTPUT.PUT_LINE('Video removed correctly');
+  END IF;
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_viewCustomer(auxCustomerID IN NUMBER)
+IS
+  custoName VARCHAR2(40);
+  custoAdd VARCHAR2(50);
+  custoPhone NUMBER(9);
+  userNaM VARCHAR2(10);
+  custoDate DATE;
+  custoCard NUMBER;
+BEGIN
+  SELECT name,customeraddress,phone,username,datesignup,cardnumber
+  INTO custoName, custoAdd, custoPhone, userNaM, custoDate, custoCard
+  FROM LIB_customer
+  WHERE customerid LIKE auxCustomerID;
+
+  DBMS_OUTPUT.PUT_LINE('CUSTOMER ' || auxCustomerID || ' INFO');
+  DBMS_OUTPUT.PUT_LINE('------------------------------------------');
+  DBMS_OUTPUT.PUT_LINE('NAME: ' || custoName);
+  DBMS_OUTPUT.PUT_LINE('ADDRESS: ' || custoAdd);
+  DBMS_OUTPUT.PUT_LINE('PHONE: ' || custoPhone);
+  DBMS_OUTPUT.PUT_LINE('USER NAME: ' || userNaM);
+  DBMS_OUTPUT.PUT_LINE('DATE OF SIGN UP: ' || custoDate);
+  DBMS_OUTPUT.PUT_LINE('CARD NUMBER: ' || custoCard);
+  DBMS_OUTPUT.PUT_LINE('------------------------------------------');
+
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE LIB_viewItem(auxItemID IN VARCHAR2)
+IS
+  auxISBN VARCHAR2(4);
+  auxTitle VARCHAR2(50);
+  auxYear NUMBER;
+  auxState VARCHAR2(10);
+  auxDebyCost NUMBER(10,2);
+  auxLostCost NUMBER(10,2);
+  auxAddress VARCHAR2(50);
+  auxAbala VARCHAR2(1);
+  auxVideo NUMBER;
+  auxBook NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO auxBook FROM lib_book  WHERE bookid LIKE auxItemID;
+  SELECT COUNT(*) INTO auxVideo FROM lib_video WHERE videoid LIKE auxItemID;
+
+  IF auxBook > 0 THEN
+    SELECT isbn, state, avalability, debycost, lostcost, address
+    INTO auxISBN, auxState, auxAbala, auxDebyCost, auxLostCost, auxAddress
+    FROM lib_book
+    WHERE bookid LIKE auxItemID;
+
+    DBMS_OUTPUT.PUT_LINE('BOOK ' || auxItemID || ' INFO');
+    DBMS_OUTPUT.PUT_LINE('------------------------------------------');
+    DBMS_OUTPUT.PUT_LINE('ISBN: ' || auxISBN);
+    DBMS_OUTPUT.PUT_LINE('STATE: ' || auxState);
+    DBMS_OUTPUT.PUT_LINE('AVALABILITY: ' || auxAbala);
+    DBMS_OUTPUT.PUT_LINE('DEBY COST: ' || auxDebyCost);
+    DBMS_OUTPUT.PUT_LINE('LOST COST: ' || auxLostCost);
+    DBMS_OUTPUT.PUT_LINE('ADDRESS: ' || auxAddress);
+    DBMS_OUTPUT.PUT_LINE('------------------------------------------');
+
+  ELSIF auxVideo > 0 THEN
+    SELECT title, year, state, avalability, debycost, lostcost, address
+    INTO auxTitle, auxYear, auxState, auxAbala, auxDebyCost, auxLostCost, auxAddress
+    FROM lib_video
+    WHERE videoid LIKE auxItemID;
+
+    DBMS_OUTPUT.PUT_LINE('VIDEO ' || auxItemID || ' INFO');
+    DBMS_OUTPUT.PUT_LINE('------------------------------------------');
+    DBMS_OUTPUT.PUT_LINE('TITLE: ' || auxTitle);
+    DBMS_OUTPUT.PUT_LINE('YEAR: ' || auxYear);
+    DBMS_OUTPUT.PUT_LINE('STATE: ' || auxState);
+    DBMS_OUTPUT.PUT_LINE('AVALABILITY: ' || auxAbala);
+    DBMS_OUTPUT.PUT_LINE('DEBY COST: ' || auxDebyCost);
+    DBMS_OUTPUT.PUT_LINE('LOST COST: ' || auxLostCost);
+    DBMS_OUTPUT.PUT_LINE('ADDRESS: ' || auxAddress);
+    DBMS_OUTPUT.PUT_LINE('------------------------------------------');
+  END IF;
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE NEW_EMPLOYEES_LEAVES_CREDIT 
+(
+  P_EMPID IN NUMBER 
+, P_MESSAGE OUT VARCHAR2 
+) AS 
+  L_JOINING_DAY NUMBER;
+  L_JOINING_MONTH NUMBER;
+  L_CASUAL NUMBER;
+  L_SICK NUMBER;
+  L_EARNED NUMBER;
+BEGIN
+  SELECT TO_CHAR(SYSDATE,'DD'), TO_CHAR(SYSDATE,'MM') INTO L_JOINING_DAY,L_JOINING_MONTH FROM DUAL;
+  
+  IF L_JOINING_DAY <=15 
+  THEN 
+  L_CASUAL := (12 - L_JOINING_MONTH )*0.5 + 0.5;
+  L_SICK := (12 - L_JOINING_MONTH )*0.5 + 0.5;
+  L_EARNED := (12 - L_JOINING_MONTH )+1;
+  ELSE
+  L_CASUAL := (12 - L_JOINING_MONTH )*0.5 + 0.25;
+  L_SICK := (12 - L_JOINING_MONTH )*0.5 + 0.25;
+  L_EARNED := (12 - L_JOINING_MONTH )+0.5;
+  END IF;
+  
+  INSERT INTO LEAVE_DETAILS(EMPID,DOJ,CASUAL_LEAVES,SICK_LEAVES,EARNED_LEAVES)VALUES(P_EMPID,SYSDATE,L_CASUAL,L_SICK,L_EARNED);
+  COMMIT;
+  
+  P_MESSAGE := 'LEAVES ARE CREDITED SUCCESSFULLY FOR EMPID : '||P_EMPID;
+  
+END NEW_EMPLOYEES_LEAVES_CREDIT;
+
+/*
+Execute Procedure with Anonymous Block
+-------------------------------------
+SET SERVEROUTPUT ON
+DECLARE 
+MESSAGE VARCHAR2(200);
+BEGIN 
+NEW_EMPLOYEES_LEAVES_CREDIT(101,MESSAGE);
+DBMS_OUTPUT.PUT_LINE(MESSAGE);
+END;
+/
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE OTP_GENERATION 
+(
+  P_PHONE IN NUMBER 
+, P_OTP OUT NUMBER 
+) AS 
+BEGIN
+  select trunc(dbms_random.value(100000,999999)) into  P_OTP from dual;
+  insert into otp_details(MOBILENUMBER, OTP,OTPGENERATEDTIME, OTPEXPIREDTIME) 
+          values (9074885418,P_OTP,sysdate, sysdate+1/(24*60));
+  COMMIT;
+END OTP_GENERATION;
+
+/*
+Execute Procedure with Anonymous Block
+-------------------------------------
+SET SERVEROUTPUT ON
+DECLARE 
+OTP NUMBER;
+BEGIN 
+OTP_GENERATION('9074885418',OTP);
+DBMS_OUTPUT.PUT_LINE(OTP);
+END;
+/
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE OTP_VALIDATION 
+(
+  P_PHONE IN NUMBER 
+, P_OTP IN NUMBER 
+, P_MESSAGE OUT VARCHAR2 
+) AS 
+L_COUNT NUMBER;
+BEGIN
+  select COUNT(1) INTO L_COUNT FROM otp_details WHERE MOBILENUMBER=P_PHONE AND OTP=P_OTP
+  AND SYSDATE BETWEEN OTPGENERATEDTIME AND OTPEXPIREDTIME;
+
+  IF L_COUNT=1 THEN P_Message := 'OTP applied Successfully';
+            ELSE P_Message := 'OTP is INVALID/EXPIRED';
+  END IF;
+
+  COMMIT;
+END OTP_VALIDATION;
+
+/*
+Execute Procedure with Anonymous Block
+-------------------------------------
+SET SERVEROUTPUT ON
+DECLARE 
+MESSAGE VARCHAR2(200);
+BEGIN 
+OTP_VALIDATION('9074885418',111222,MESSAGE);
+DBMS_OUTPUT.PUT_LINE(MESSAGE);
+END;
+/
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE PASSWORD_EXPIRATION_IDS 
+(
+  P_DAYS IN NUMBER 
+, P_RESULT OUT SYS_REFCURSOR 
+) AS 
+BEGIN
+  OPEN p_result FOR SELECT ID,USER_NAME, MODIFIED_DATE FROM PASSWORD_DETAILS WHERE MODIFIED_DATE<=SYSDATE - P_DAYS
+  ORDER BY MODIFIED_DATE;
+END PASSWORD_EXPIRATION_IDS;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE PASSWORD_GENERATION 
+(
+  P_USER_NAME IN VARCHAR2 
+, P_USER_ID OUT NUMBER 
+, P_PASSWORD OUT VARCHAR2 
+) AS 
+BEGIN
+  SELECT NVL(MAX(ID),0)+1 INTO  P_USER_ID FROM password_details ;
+  SELECT UPPER(SUBSTR(P_USER_NAME,1,2))||DBMS_RANDOM.STRING('P',8) INTO P_PASSWORD FROM DUAL;
+  INSERT INTO password_details(ID,USER_NAME,PASSWORD,CREATED_BY,CREATED_DATE,MODIFIED_BY,MODIFIED_DATE)
+         VALUES(P_USER_ID,P_USER_NAME,P_PASSWORD,'ADMIN',SYSDATE,'ADMIN',SYSDATE );
+  COMMIT;
+  DBMS_OUTPUT.PUT_LINE(P_USER_ID ||P_PASSWORD );
+END PASSWORD_GENERATION;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE PASSWORD_VALIDATION 
+(
+  P_USER_ID IN NUMBER 
+, P_PASSWORD IN VARCHAR2 
+, P_MESSAGE OUT VARCHAR2
+) AS 
+PASSWORD_EXCEPTION EXCEPTION;
+L_CURRENT_PWD VARCHAR2(100);
+BEGIN
+  SELECT PASSWORD INTO L_CURRENT_PWD FROM password_details WHERE ID = P_USER_ID  ;
+  
+  FOR PWD IN (SELECT PASSWORD FROM PASSWORD_LOG WHERE ID = P_USER_ID ORDER BY INSERTED_DATE DESC FETCH FIRST 3 ROWS ONLY )
+  LOOP
+   IF (PWD.PASSWORD = P_PASSWORD OR L_CURRENT_PWD=P_PASSWORD) THEN 
+   RAISE PASSWORD_EXCEPTION;
+   END IF;
+ END LOOP;
+   
+   INSERT INTO PASSWORD_LOG(ID, USER_NAME, PASSWORD,INSERTED_DATE)SELECT ID, USER_NAME,PASSWORD,SYSDATE FROM password_details WHERE ID = P_USER_ID  ;
+   
+   UPDATE password_details SET PASSWORD = P_PASSWORD, MODIFIED_DATE= SYSDATE WHERE ID = P_USER_ID  ;
+   COMMIT;
+   
+   P_MESSAGE :='PASSWORD UPDATED SUCCESSFULLY ,PLEASE LOGIN WITH NEW PASSWORD';
+   
+   EXCEPTION 
+   WHEN PASSWORD_EXCEPTION THEN ROLLBACK;
+   P_MESSAGE :='PASSWORD ALREADY USED IN LAST 3 UPDATION  ,PLEASE TRY WITH DIFFERENT ONE';
+   
+END PASSWORD_VALIDATION;
+
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE PROC1 AS 
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Print - 1 ');
+  return ;
+  DBMS_OUTPUT.PUT_LINE('Print - 2 ');
+END PROC1;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE query_emp (p_id IN employees.employee_id%TYPE, p_name OUT employees.last_name%TYPE, p_salary OUT employees.salary%TYPE) IS
+BEGIN
+ SELECT last_name, salary INTO p_name, p_salary FROM employees WHERE employee_id = p_id;
+END query_emp;
+/*
+DECLARE a_emp_name employees.last_name%TYPE; a_emp_sal employees.salary%TYPE;
+BEGIN
+ query_emp(178, a_emp_name, a_emp_sal);
+ DBMS_OUTPUT.PUT_LINE('Name: ' || a_emp_name);
+ DBMS_OUTPUT.PUT_LINE('Salary: ' || a_emp_sal);
+END;
+*/
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE raise_salary (p_id IN employees.employee_id%TYPE, p_percent IN NUMBER) IS
+BEGIN
+ UPDATE employees SET salary = salary * (1 + p_percent/100) WHERE employee_id = p_id;
+END raise_salary;
+--EXEC raise_salary(176, 10);
+--BEGIN raise_salary(176, 10); END;
+--Creating Procedures with Parameters
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE sbi_get_name_and_current_amount(p_a_id in NUMBER,v_name out VARCHAR2,c_balance out NUMBER) AS
+BEGIN
+
+	select name into v_name from sbi_ACCOUNTS ac join sbi_customer  c 
+  on (ac.customer_id=c.customer_id) where ACCOUNT_ID=p_a_id;	
+
+  select CURRENT_BALANCE into c_balance  from sbi_ACCOUNTS where ACCOUNT_ID=p_a_id;
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE sbi_insert_into_transaction(a_id in NUMBER,b_id in number,
+													date_of_tran in varchar2,p_amount in FLOAT,p_action in varchar2) AS
+
+BEGIN
+
+insert into sbi_TRANSACTION (transaction_id,account_id,branch_id,date_of_transaction,amount,action) 
+   values(t_id_sequence.NEXTVAL,a_id,b_id,
+	to_date(date_of_tran,'dd-MM-yyyy hh24:mi:ss'),p_amount,p_action);
+
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE sbi_view_full_profile
+   (p_a_id in NUMBER,p_name out VARCHAR2,p_phone out VARCHAR2,p_email out VARCHAR2,
+   p_houseno out VARCHAR2,p_zip out VARCHAR2,p_city out VARCHAR2,p_c_balance out NUMBER) AS
+BEGIN
+	select name into p_name from sbi_ACCOUNTS ac
+  join sbi_CUSTOMER c on (ac.customer_id=c.customer_id) where account_id=p_a_id;
+
+	select phone into p_phone from sbi_ACCOUNTS ac
+  join sbi_CUSTOMER c on (ac.customer_id=c.customer_id) where account_id=p_a_id;
+
+	select email into p_email from sbi_ACCOUNTS ac
+  join sbi_CUSTOMER c on (ac.customer_id=c.customer_id) where account_id=p_a_id;
+
+  select house_no into p_houseno from sbi_ACCOUNTS ac
+  join sbi_CUSTOMER c on (ac.customer_id=c.customer_id) where account_id=p_a_id;
+
+	select zipcode into p_zip from sbi_ACCOUNTS ac
+  join sbi_CUSTOMER c on (ac.customer_id=c.customer_id) where account_id=p_a_id;
+
+	select city into p_city from sbi_ACCOUNTS ac
+  join sbi_CUSTOMER c on (ac.customer_id=c.customer_id) where account_id=p_a_id;
+
+	select current_balance into p_c_balance from sbi_ACCOUNTS where account_id=p_a_id;
+
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE secure_dml
+IS
+BEGIN
+  IF TO_CHAR (SYSDATE, 'HH24:MI') NOT BETWEEN '08:00' AND '18:00'
+        OR TO_CHAR (SYSDATE, 'DY') IN ('SAT', 'SUN') THEN
+	RAISE_APPLICATION_ERROR (-20205,
+		'You may only make changes during normal office hours');
+  END IF;
+END secure_dml;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE show_trigger_event  
+IS  
+BEGIN  
+   DBMS_OUTPUT.put_line (CASE  
+                            WHEN UPDATING ('last_name') THEN 'UPDATE last_name'  
+                            WHEN UPDATING THEN 'UPDATE'  
+                            WHEN INSERTING THEN 'INSERT'  
+                            WHEN DELETING THEN 'DELETE'  
+                            ELSE 'Procedure not executed from DML trigger!'  
+                         END);  
+END; 
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+create or replace PROCEDURE TOP_3_FLIPKART_D_SX 
+(
+  P_YEAR IN VARCHAR2 
+, P_D IN VARCHAR2 
+, P_RESULT OUT SYS_REFCURSOR 
+) AS 
+BEGIN
+  OPEN P_RESULT FOR 
+  SELECT D_UID, COUNT(D_UID) No_od_deliveries, SUM(RATING)/COUNT(D_UID) RATING FROM flipkart_feedback_details
+  WHERE TO_CHAR(D_DATE,'YYYY')=P_YEAR GROUP BY D_UID HAVING COUNT(D_UID)>=P_D ORDER BY RATING FETCH FIRST 3 ROWS ONLY ;
+END TOP_3_FLIPKART_D_SX;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
