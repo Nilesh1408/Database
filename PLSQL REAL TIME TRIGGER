@@ -1,0 +1,576 @@
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER ACC_TXN 
+BEFORE UPDATE ON ACCOUNTS 
+FOR EACH ROW 
+BEGIN
+  INSERT INTO TXN(T_ID,ACC_NO,T_DATE,AMOUNT,BALANCE)
+  VALUES(ACC_SEQ.NEXTVAL,:NEW.ACC_NO, SYSDATE, ABS(:NEW.BALANCE - :OLD.BALANCE),:NEW.BALANCE);
+END;
+
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER AM_DELAYEDFLIGHTS 
+-- Trigger, when flight is delayed it is logged into different table--
+AFTER INSERT ON AM_FLIGHT 
+FOR EACH ROW 
+DECLARE
+BEGIN
+    if updating('STATUS')
+    then
+       insert into AM_delayed_flights (FLIGHT_CODE, SOURCE, DESTINATION , AIRLINEID ,report_time) values(:new.flight_code,:new.source,:new.destination,:new.airlineid,sysdate);
+end if;
+
+END;
+
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER AM_TICKET_PRICE_HIST
+BEFORE UPDATE OF PRICE ON AM_TICKET2
+FOR EACH ROW
+BEGIN
+INSERT INTO AM_TICKET_PRICE_HISTORY 
+VALUES(:OLD.DATE_OF_BOOKING, :OLD.SOURCE, :OLD.DESTINATION, :OLD.CLASS, :OLD.PRICE);
+END;
+/*
+--LET'S UPDATE A PRICE OR FARE OF AN AIR TICKET --
+UPDATE AM_TICKET2
+SET PRICE=150000
+WHERE DATE_OF_BOOKING ='11-NOV-16'
+AND SOURCE='BOM'
+AND DESTINATION='DFW'
+AND CLASS='ECONOMY'
+*/
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER BANK_ACCOUNT_AUDIT
+--A trigger for AUDIT_ACCOUNT TABLE FOR KEEPING THE TRACK OF TRANSACTION
+AFTER INSERT OR UPDATE ON BANK_ACCOUNT
+FOR EACH ROW
+DECLARE
+
+BEGIN
+	IF INSERTING THEN
+		INSERT INTO BANK_AUDIT_ACCOUNT (N, ACCOUNT_NO, AMOUNT, BALANCE, CUSTOMER_ID) 
+		VALUES (a.nextval, :NEW.ACCOUNT_NO, :NEW.AMOUNT, :NEW.BALANCE, :NEW.CUSTOMER_ID);
+
+	ELSIF UPDATING THEN
+		INSERT INTO BANK_AUDIT_ACCOUNT (N, ACCOUNT_NO, AMOUNT, BALANCE, TRANSACTION_STATUS, LAST_TRANSACTION)
+		VALUES (a.nextval, :OLD.ACCOUNT_NO, :NEW.AMOUNT, :NEW.BALANCE, :NEW.TRANSACTION_STATUS, SYSDATE);
+
+	END IF;
+
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER BANK_AU_ACCOUNT
+--A TRIGGER FOR TRASACTION IN ACCOUNT TABLE IF DEPOSIT THEN ADD WITH BALANCE ELSE SUB WITH BALANCE
+BEFORE INSERT OR UPDATE ON BANK_ACCOUNT
+FOR EACH ROW
+DECLARE
+	NEW_TRANSACTION         BANK_ACCOUNT.TRANSACTION_IN%TYPE;
+BEGIN
+	IF INSERTING THEN
+		:NEW.BALANCE := :NEW.AMOUNT;
+		:NEW.TRANSACTION_IN := :NEW.AMOUNT;
+
+	ELSIF UPDATING THEN
+		IF :NEW.TRANSACTION_STATUS = 'DEPOSIT' THEN
+			:NEW.BALANCE := :OLD.BALANCE + :NEW.AMOUNT;
+			:NEW.TRANSACTION_IN := :OLD.TRANSACTION_IN + :NEW.AMOUNT;
+			:NEW.LAST_TRANSACTION := SYSDATE;
+			DBMS_OUTPUT.PUT_LINE('TRANSACTION DEPOSIT');
+
+		ELSIF :NEW.TRANSACTION_STATUS = 'WITHDRAW' THEN
+			:NEW.BALANCE := :OLD.BALANCE - :NEW.AMOUNT;
+			DBMS_OUTPUT.PUT_LINE('TRANSACTION WITHDRAW');
+		END IF;
+	END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER bank_LU_LOAN
+-- LOAN CONSTRAINT TO CREATE LOAN ACCOUNT OR NOT ---- LOAN CANNOT BE CREATED MINIMUM TRANSACTION 50000 TAKA.
+BEFORE INSERT OR UPDATE ON bank_LOAN
+FOR EACH ROW
+DECLARE
+	NEW_TRANSACTION         bank_ACCOUNT.TRANSACTION_IN%TYPE;
+	N_CUSTOMER_ID           bank_LOAN.CUSTOMER_ID%TYPE;
+BEGIN
+	SELECT TRANSACTION_IN INTO NEW_TRANSACTION FROM bank_ACCOUNT WHERE bank_ACCOUNT.CUSTOMER_ID = :NEW.CUSTOMER_ID;
+	IF INSERTING AND NEW_TRANSACTION < 50000 THEN
+		raise_application_error( -20001, 'LOAN CANNOT BE CREATED MINIMUM TRANSACTION 50000 TAKA.');
+	ELSE
+		DBMS_OUTPUT.PUT_LINE('LOAN CREATED');
+	END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER ECOM_remove_items_from_cart AFTER
+    INSERT ON ECOM_amz_order
+    FOR EACH ROW
+DECLARE BEGIN
+    DELETE FROM ECOM_shopping_cart
+    WHERE
+        buyer_id = :new.buyer_id;
+
+    DELETE FROM ECOM_product_shoppingcart
+    WHERE
+        buyer_id = :new.buyer_id;
+
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER ECOM_update_available_units AFTER
+    INSERT ON ECOM_amz_order
+    FOR EACH ROW
+DECLARE
+    product_id_var        INTEGER;
+    available_units_var   INTEGER;
+    CURSOR products_cur IS
+    SELECT
+        product_id
+    FROM
+        ECOM_order_product
+    WHERE
+        order_id = :new.order_id;
+
+BEGIN
+    OPEN products_cur;
+    LOOP
+        FETCH products_cur INTO product_id_var;
+        EXIT WHEN products_cur%notfound;
+        SELECT
+            available_units
+        INTO available_units_var
+        FROM
+            ECOM_product
+        WHERE
+            product_id = product_id_var;
+
+        IF available_units_var >= 2 THEN
+            UPDATE ECOM_product
+            SET
+                available_units = available_units - 1
+            WHERE
+                product_id = product_id_var;
+
+        ELSIF available_units_var = 1 THEN
+            UPDATE ECOM_product
+            SET
+                available_units = available_units - 1,
+                in_stock = 0
+            WHERE
+                product_id = product_id_var;
+
+        END IF;
+
+    END LOOP;
+
+    CLOSE products_cur;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER ECOM_update_product_rating AFTER
+    INSERT ON ECOM_review
+    FOR EACH ROW
+DECLARE
+    new_rating         NUMBER(2, 1);
+    review_count_old   INTEGER;
+BEGIN
+    SELECT
+        review_count
+    INTO review_count_old
+    FROM
+        ECOM_product
+    WHERE
+        product_id = :new.product_id;
+
+    new_rating := :new.rating;
+    UPDATE ECOM_product
+    SET
+        rating = ( ( rating * review_count_old ) + new_rating ) / ( review_count_old + 1 ),
+        review_count = review_count_old + 1
+    WHERE
+        product_id = :new.product_id;
+
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER ECOM_update_seller_rating AFTER
+    INSERT OR UPDATE OF rating ON ECOM_review
+    FOR EACH ROW
+DECLARE
+    new_rating            NUMBER(2, 1);
+    seller_id_to_update   VARCHAR(255);
+BEGIN
+    new_rating := :new.rating;
+    SELECT
+        seller_id
+    INTO seller_id_to_update
+    FROM
+        ECOM_product
+    WHERE
+        product_id = :new.product_id;
+
+    UPDATE ECOM_seller
+    SET
+        average_rating = ( ( average_rating * rating_count ) + new_rating ) / ( rating_count + 1 ),
+        rating_count = rating_count + 1
+    WHERE
+        seller_id = seller_id_to_update;
+
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER HM_BILL_TRG
+BEFORE INSERT ON HM_BILL
+FOR EACH ROW
+DECLARE
+DOC_ID VARCHAR(10 CHAR);
+BEGIN
+IF :NEW.BILL_NO IS NULL THEN
+     SELECT HM_BILL_NO_SEQ.NEXTVAL INTO :NEW.BILL_NO FROM DUAL;
+END IF;
+IF :NEW.PAT_NAME IS NULL THEN
+     SELECT PAT_NAME INTO :NEW.PAT_NAME FROM HM_PATIENT WHERE PAT_ID=:NEW.PAT_ID;
+END IF;
+IF :NEW.PAT_GENDER IS NULL THEN
+     SELECT PAT_GENDER INTO :NEW.PAT_GENDER FROM HM_PATIENT WHERE PAT_ID=:NEW.PAT_ID;
+END IF;
+IF :NEW.PAT_ADDRESS IS NULL THEN
+     SELECT PAT_ADDRESS INTO :NEW.PAT_ADDRESS FROM HM_PATIENT WHERE PAT_ID=:NEW.PAT_ID;
+END IF;
+IF :NEW.DOC_NAME IS NULL THEN
+     SELECT PAT_DOC_CODE INTO DOC_ID FROM HM_PATIENT WHERE PAT_ID=:NEW.PAT_ID;
+	 SELECT DOC_NAME INTO :NEW.DOC_NAME FROM HM_DOCTOR WHERE DOC_CODE = DOC_ID;
+END IF;
+END;
+--Bill (To be inserted after trigger creation)
+--INSERT INTO BILL (PAT_ID,AMOUNT) values ('P001',3000.4);
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER LIB_modifyFines
+AFTER DELETE ON LIB_rent
+FOR EACH ROW
+DECLARE
+  auxCardID NUMBER;
+  auxItemID VARCHAR2(6);
+  auxBook NUMBER;
+  auxVideo NUMBER;
+  auxDeby NUMBER;
+BEGIN  
+  SELECT cardid, itemid INTO auxCardID, auxItemID
+  FROM LIB_rent
+  WHERE cardid LIKE :old.cardid;
+
+  SELECT COUNT(*) INTO auxBook
+  FROM LIB_book
+  WHERE bookid LIKE auxItemID;
+
+  SELECT COUNT(*) INTO auxVideo
+  FROM LIB_video
+  WHERE videoid LIKE auxItemID;
+
+  IF sysdate > :old.returndate THEN
+    IF auxVideo > 0 THEN 
+      SELECT debyCost INTO auxDeby
+      FROM LIB_video
+      WHERE videoid LIKE auxItemID;
+    ELSIF auxBook > 0 THEN
+      SELECT debyCost INTO auxDeby
+      FROM LIB_book
+      WHERE bookid LIKE auxItemID;
+    END IF;
+
+    UPDATE LIB_card
+    SET status = 'B', fines = (fines + auxDeby)
+    WHERE cardid LIKE auxCardID;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('The item has been return before deadline');
+  END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER LimitSalary
+BEFORE INSERT OR UPDATE OF salary ON company
+FOR EACH ROW
+DECLARE
+    v_MaxSalary CONSTANT NUMBER := 2000;
+    v_CurrentSalary NUMBER;
+BEGIN
+    SELECT salary INTO v_CurrentSalary FROM company WHERE PRODUCT_ID = :new.PRODUCT_ID;
+    IF v_CurrentSalary > v_MaxSalary THEN
+      RAISE_APPLICATION_ERROR(-20000, 'Too high in salary ' || :new.PRODUCT_ID);
+    END IF;
+END LimitSalary;
+
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace trigger LM_fine_amt_trg
+BEFORE INSERT ON LM_FINE
+FOR EACH ROW
+DECLARE
+ID integer;
+FINE_AMT number(38,0);
+DELAY_DAYS integer;
+BEGIN
+IF :NEW.FINE_AMOUNT is NULL THEN
+SELECT MAX(RETURN_ID) INTO ID FROM LM_RETURNS where BOOK_ID = :NEW.BOOK_ID;
+SELECT DELAY*10 INTO :NEW.FINE_AMOUNT FROM LM_RETURNS WHERE RETURN_ID = ID;
+END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER LM_FINE_TRG
+BEFORE INSERT ON LM_FINE
+FOR EACH ROW
+DECLARE
+ID INTEGER;
+BEGIN
+IF :NEW.FINE_ID IS NULL THEN
+SELECT MAX(RETURN_ID) INTO ID FROM LM_RETURNS where BOOK_ID = :NEW.BOOK_ID;
+SELECT RETURN_ID INTO :NEW.FINE_ID FROM LM_RETURNS WHERE RETURN_ID = ID;
+END IF;
+IF :NEW.BOOK_TITLE IS NULL THEN
+SELECT MAX(ISSUE_ID) INTO ID FROM LM_ISSUES where BOOK_ID = :NEW.BOOK_ID;
+SELECT BOOK_TITLE INTO :NEW.BOOK_TITLE FROM LM_ISSUES WHERE ISSUE_ID = ID;
+END IF;
+IF :NEW.BORROWER_ID IS NULL THEN
+SELECT MAX(RETURN_ID) INTO ID FROM LM_RETURNS where BOOK_ID = :NEW.BOOK_ID;
+SELECT BORROWER_ID INTO :NEW.BORROWER_ID FROM LM_RETURNS WHERE RETURN_ID = ID;
+END IF;
+IF :NEW.BORROWER_NAME IS NULL THEN
+SELECT MAX(RETURN_ID) INTO ID FROM LM_RETURNS where BOOK_ID = :NEW.BOOK_ID;
+SELECT BORROWER_NAME INTO :NEW.BORROWER_NAME FROM LM_RETURNS WHERE RETURN_ID = ID;
+END IF;
+IF :NEW.DELAY IS NULL THEN
+SELECT MAX(RETURN_ID) INTO ID FROM LM_RETURNS where BOOK_ID = :NEW.BOOK_ID;
+SELECT DELAY INTO :NEW.DELAY FROM LM_RETURNS WHERE RETURN_ID = ID;
+END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER LM_ISSUE_EXPIRY
+BEFORE INSERT ON LM_ISSUES
+FOR EACH ROW
+DECLARE
+student_expiration integer := 4;
+staff_expiration integer := 5;
+issuer_designation varchar2(50 CHAR);
+BEGIN
+IF :NEW.DATE_EXPIRY IS NULL THEN
+SELECT designation INTO ISSUER_DESIGNATION FROM LM_USERS WHERE user_id = :new.borrower_id;
+ IF ISSUER_DESIGNATION = 'STUDENT' THEN
+ SELECT (:new.issue_date + student_expiration) into :new.date_expiry from dual;
+ elsif ISSUER_DESIGNATION = 'STAFF' THEN
+ SELECT (:new.issue_date + staff_expiration) into :new.date_expiry from dual;
+ END IF;
+END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER LM_ISSUE_TRG
+BEFORE INSERT ON LM_ISSUES
+FOR EACH ROW
+DECLARE
+BORROW_NAME VARCHAR2(60);
+BORROW_DESIGN VARCHAR2(60);
+BOOK_NAME VARCHAR2(100);
+BEGIN
+IF :NEW.ISSUE_ID IS NULL THEN
+      SELECT LM_ISSUE_ID_SEQ.NEXTVAL into :NEW.ISSUE_ID from dual;
+END IF;
+IF :NEW.BORROWER_NAME IS NULL THEN
+SELECT NAME INTO BORROW_NAME FROM LM_USERS WHERE USER_ID = :NEW.BORROWER_ID;
+SELECT BORROW_NAME INTO :NEW.BORROWER_NAME FROM DUAL;
+END IF;
+IF :NEW.BORROWER_DESIGNATION IS NULL THEN
+SELECT DESIGNATION INTO BORROW_DESIGN FROM LM_USERS WHERE USER_ID = :NEW.BORROWER_ID;
+SELECT BORROW_DESIGN INTO :NEW.BORROWER_DESIGNATION FROM DUAL;
+END IF;
+IF :NEW.BOOK_TITLE IS NULL THEN
+SELECT BOOK_TITLE INTO BOOK_NAME FROM LM_BOOKS WHERE BOOK_ID = :NEW.BOOK_ID;
+SELECT BOOK_NAME INTO :NEW.BOOK_TITLE FROM DUAL;
+END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER LM_RETURN_DELAY_TRG
+BEFORE INSERT ON LM_RETURNS
+FOR EACH ROW
+DECLARE
+ID INTEGER;
+DEADLINE_DATE DATE;
+date1 date;
+date2 date;
+BEGIN
+IF :NEW.DELAY IS NULL THEN
+SELECT MAX(ISSUE_ID) INTO ID FROM LM_ISSUES where BOOK_ID = :NEW.BOOK_ID;
+SELECT DATE_EXPIRY INTO DEADLINE_DATE FROM LM_ISSUES where ISSUE_ID = ID;
+date1 := to_date(DEADLINE_DATE, 'DD-MM-YYYY');
+date2 := to_date(:new.return_date,'DD-MM-YYYY');
+IF date2 - date1 <= 0 THEN
+:NEW.DELAY := 0;
+ELSIF date2 - date1  > 0 THEN
+:new.delay := date2 - date1;
+END IF;
+END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER LM_RETURN_ID_TRG
+BEFORE INSERT ON LM_RETURNS
+FOR EACH ROW
+DECLARE
+ID INTEGER;
+BEGIN
+IF :NEW.RETURN_ID IS NULL THEN
+SELECT MAX(ISSUE_ID) INTO ID FROM LM_ISSUES where BOOK_ID = :NEW.BOOK_ID;
+SELECT ID INTO :NEW.RETURN_ID FROM DUAL;
+END IF;
+IF :NEW.BORROWER_ID IS NULL THEN
+SELECT MAX(ISSUE_ID) INTO ID FROM LM_ISSUES where BOOK_ID = :NEW.BOOK_ID;
+SELECT BORROWER_ID INTO :NEW.BORROWER_ID FROM LM_ISSUES WHERE ISSUE_ID = ID;
+END IF;
+IF :NEW.BORROWER_NAME IS NULL THEN
+SELECT MAX(ISSUE_ID) INTO ID FROM LM_ISSUES where BOOK_ID = :NEW.BOOK_ID;
+SELECT BORROWER_NAME INTO :NEW.BORROWER_NAME FROM LM_ISSUES WHERE ISSUE_ID = ID;
+END IF;
+IF :NEW.ISSUE_DATE IS NULL THEN
+SELECT MAX(ISSUE_ID) INTO ID FROM LM_ISSUES where BOOK_ID = :NEW.BOOK_ID;
+SELECT ISSUE_DATE INTO :NEW.ISSUE_DATE FROM LM_ISSUES WHERE ISSUE_ID = ID;
+END IF;
+IF :NEW.DEADLINE_DATE IS NULL THEN
+SELECT MAX(ISSUE_ID) INTO ID FROM LM_ISSUES where BOOK_ID = :NEW.BOOK_ID;
+SELECT DATE_EXPIRY INTO :NEW.DEADLINE_DATE FROM LM_ISSUES WHERE ISSUE_ID = ID;
+END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER myTrigger
+AFTER INSERT ON company
+FOR EACH ROW
+BEGIN
+  UPDATE product_audit SET num_rows =num_rows+1 WHERE product_id =:NEW.product_id;
+  IF (SQL%NOTFOUND) THEN INSERT INTO product_audit VALUES (:NEW.product_id,1); 
+  END IF;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER sbi_deposit_balance
+AFTER INSERT ON sbi_TRANSACTION 
+FOR EACH ROW 
+WHEN (new.ACTION = 'Deposite')
+
+DECLARE 
+		a_id NUMBER;
+		balance FLOAT;
+		t_type VARCHAR2(20);
+
+BEGIN 
+			a_id := :NEW.ACCOUNT_ID;
+			balance := :NEW.AMOUNT;
+			t_type := :NEW.ACTION;
+			DBMS_OUTPUT.PUT_LINE(a_id);
+			DBMS_OUTPUT.PUT_LINE(balance);
+			DBMS_OUTPUT.PUT_LINE(t_type);
+
+			UPDATE sbi_ACCOUNTS
+			SET CURRENT_BALANCE=CURRENT_BALANCE+balance
+			WHERE ACCOUNT_ID= a_id;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER sbi_withdraw_balance
+AFTER INSERT ON sbi_TRANSACTION 
+FOR EACH ROW 
+WHEN (new.ACTION = 'Withdraw')
+
+DECLARE 
+		a_id NUMBER;
+		balance FLOAT;
+		t_type VARCHAR2(20);
+
+BEGIN 
+			a_id := :NEW.ACCOUNT_ID;
+			balance := :NEW.AMOUNT;
+			t_type := :NEW.ACTION;
+			DBMS_OUTPUT.PUT_LINE(a_id);
+			DBMS_OUTPUT.PUT_LINE(balance);
+			DBMS_OUTPUT.PUT_LINE(t_type);
+
+			UPDATE sbi_ACCOUNTS
+			SET CURRENT_BALANCE=CURRENT_BALANCE-balance
+			WHERE ACCOUNT_ID= a_id;
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace trigger trig_before_up_sal
+-- how to avoid mutating error using packaged global variable
+-- compound trigger to avoid mutating trigger
+before update of sal on emp_t
+declare
+ lv_max_sal number;
+begin
+ select sal into pkg1.lv_ceo_sal from emp_t where job = 'CEO';
+end;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace trigger trig_validate_sal
+-- Trigger to check if the sal greater than 100000, if yes, log the error message, else update sucessfully
+-- compound trigger to avoid mutating trigger
+before update of sal on emp_t
+for each row
+declare
+lv_max_sal number := 100000;
+begin
+
+if :new.sal < lv_max_sal then
+ insert into emp_sal_log values(:new.empno,'Salary Updates successfully : '  ||' OLD SAL = '||:old.sal||', NEW SAL = '||:new.sal);
+else
+ :new.sal := :old.sal;
+ insert into emp_sal_log values(:new.empno,'Salary NOT UPDATED : Employee salary cannot be more than '||lv_max_sal);
+end if;
+end;
+
+/*
+-- Trigger to check if the sal greater than sal of CEO, if yes, log the error message, else update successfully., but for CEO update should go through.
+
+create or replace trigger trig_validate_sal
+before update of sal on emp_t
+for each row
+declare
+lv_ceo_sal number;
+begin
+
+select sal into lv_ceo_sal
+from emp_t
+where job = 'CEO'
+and deptno= :new.deptno;
+
+if (:new.sal < lv_ceo_sal and :old.job <> 'CEO') or (:old.job = 'CEO') then
+ insert into emp_sal_log values(:new.empno,
+        'Salary Updates successfully : '
+     ||' OLD SAL = '||:old.sal||', NEW SAL = '||:new.sal);
+else
+ :new.sal := :old.sal;
+ insert into emp_sal_log values(:new.empno,
+      'Salary NOT UPDATED : Employee salary cannot be more than '
+   ||lv_ceo_sal);
+end if;
+
+end;
+*/
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+create or replace TRIGGER update_job_history
+  AFTER UPDATE OF job_id, department_id ON employees
+  FOR EACH ROW
+BEGIN
+  add_job_history(:old.employee_id, :old.hire_date, sysdate,
+                  :old.job_id, :old.department_id);
+END;
+#--------------------------------------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------#
+
