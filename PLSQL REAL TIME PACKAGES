@@ -1,0 +1,155 @@
+#-----------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------#
+create or replace PACKAGE BODY trigger_count  
+IS  
+   TYPE count_t IS TABLE OF PLS_INTEGER  
+                      INDEX BY action_t;  
+
+   g_count_before   count_t;  
+   g_count_after    count_t;  
+
+   PROCEDURE increment_before (action_in IN action_t)  
+   IS  
+   BEGIN  
+      g_count_before (action_in) :=  
+         CASE  
+            WHEN NOT g_count_before.EXISTS (action_in) THEN 1  
+            ELSE g_count_before (action_in) + 1  
+         END;  
+   END increment_before;  
+
+   PROCEDURE increment_after (action_in IN action_t)  
+   IS  
+   BEGIN  
+      g_count_after (action_in) :=  
+         CASE  
+            WHEN NOT g_count_after.EXISTS (action_in) THEN 1  
+            ELSE g_count_after (action_in) + 1  
+         END;  
+   END increment_after;  
+
+   PROCEDURE reset  
+   IS  
+   BEGIN  
+      g_count_after.delete;  
+      g_count_before.delete;  
+   END reset;  
+
+   PROCEDURE report  
+   IS  
+      l_index_value   action_t;  
+   BEGIN  
+      DBMS_OUTPUT.put_line ('BEFORE STATEMENT COUNTS...');  
+      l_index_value := g_count_before.FIRST;  
+
+      WHILE (l_index_value IS NOT NULL)  
+      LOOP  
+         DBMS_OUTPUT.  
+          put_line (l_index_value || ' = ' || g_count_before (l_index_value));  
+         l_index_value := g_count_before.NEXT (l_index_value);  
+      END LOOP;  
+
+      DBMS_OUTPUT.put_line ('AFTER STATEMENT COUNTS....');  
+      l_index_value := g_count_after.FIRST;  
+
+      WHILE (l_index_value IS NOT NULL)  
+      LOOP  
+         DBMS_OUTPUT.  
+          put_line (l_index_value || ' = ' || g_count_after (l_index_value));  
+         l_index_value := g_count_after.NEXT (l_index_value);  
+      END LOOP;  
+   END;  
+   
+#-----------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------#
+create or replace package body test_formulas
+is
+   function bac (
+      p_volume in number
+    , p_abv    in number
+    , p_weight in number
+    , p_gender in varchar2
+   ) return number deterministic
+   is
+      PRAGMA UDF;
+   begin
+      return round(
+         100 * (p_volume * p_abv / 100 * 0.789)
+          / (p_weight * 1000 * case p_gender
+                                  when 'M' then 0.68
+                                  when 'F' then 0.55
+                               end)
+       , 3
+      );
+   end bac;
+end test_formulas;
+
+#-----------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------#
+create or replace PACKAGE BODY Random AS
+
+  /* Used for calculating the next number. */
+  v_Multiplier  CONSTANT NUMBER := 22695477;
+  v_Increment   CONSTANT NUMBER := 1;
+
+  /* Seed used to generate random sequence. */
+  v_Seed        number := 1;
+
+  PROCEDURE ChangeSeed(p_NewSeed IN NUMBER) IS
+  BEGIN
+    v_Seed := p_NewSeed;
+  END ChangeSeed;
+
+  FUNCTION Rand RETURN NUMBER IS
+  BEGIN
+    v_Seed := MOD(v_Multiplier * v_Seed + v_Increment,
+                  (2 ** 32));
+    RETURN BITAND(v_Seed/(2 ** 16), 32767);
+  END Rand;
+
+  PROCEDURE GetRand(p_RandomNumber OUT NUMBER) IS
+  BEGIN
+    -- Simply call Rand and return the value.
+    p_RandomNumber := Rand;
+  END GetRand;
+
+   FUNCTION RandMax(p_MaxVal IN NUMBER) RETURN NUMBER IS
+  BEGIN
+    RETURN MOD(Rand, p_MaxVal) + 1;
+  END RandMax;
+
+  PROCEDURE GetRandMax(p_RandomNumber OUT NUMBER,
+                       p_MaxVal IN NUMBER) IS
+  BEGIN
+    -- Simply call RandMax and return the value.
+    p_RandomNumber := RandMax(p_MaxVal);
+  END GetRandMax;
+
+BEGIN
+  /* Package initialization.  Initialize the seed to the current
+     time in seconds. */
+  ChangeSeed(TO_NUMBER(TO_CHAR(SYSDATE, 'SSSSS')));
+END Random;
+
+#-----------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------#
+create or replace PACKAGE BODY inv_pck_spec is
+   FUNCTION inv_count(qty integer)RETURN integer is
+       new_qty integer;
+   BEGIN
+       new_qty:= qty*6;
+        INSERT into emp_loyees (EMPNO,MSAL) values ('01',new_qty);
+       RETURN(new_qty);
+   END inv_count;
+
+   PROCEDURE inv_adjust(qty integer) is
+   BEGIN
+      DELETE from emp_loyees WHERE MSAL<qty;
+   END;
+   BEGIN  -- package initialization begins here
+       INSERT into emp_loyees (EMPNO, ENAME)values('01', 'new');
+
+END inv_pck_spec;
+
+#-----------------------------------------------------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------#
