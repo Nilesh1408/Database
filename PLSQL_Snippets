@@ -1,0 +1,1545 @@
+--------------------------------------------------------------------------------
+--      Script........: Capital-CLF.sql                                       --
+--      Date..........: 01/08/2022                                            --
+--      Description...: Notes                                                 --
+--                                                                            --
+--------------------------------------------------------------------------------
+WHENEVER OSERROR  EXIT 1;
+WHENEVER SQLERROR EXIT 3;
+--SET SERVEROUTPUT ON
+--SET heading off;
+--SET verify off;
+
+/* INICIO CONEXION COMO USUARIO PROPIETARIO */
+prompt *** Fem el connect amb propietario
+define propietari=BAS_MEN
+START $BDD_PWD/propietaris.pwd
+/* FIN CONEXION COMO USUARIO PROPIETARIO */
+ALTER SESSION ENABLE PARALLEL DML;
+
+--------------------------------------------------------------------
+ALTER TABLE DCRPROP.QIS_BASILEA_STDA       ADD IDROW	NUMBER;
+--------------------------------------------------------------------
+CONNECT /
+define propietari=DCRPROP_MENSUAL
+start $BDD_PWD/propietaris.pwd
+
+-- Delete record from table DCRPROP_MENSUAL.RELACION_FILIAL_GRUPO_RIESGO cif_nif in ('B31845373', 'A08135055', 'A86056736', '201017488D')
+DELETE FROM DCRPROP_MENSUAL.RELACION_FILIAL_GRUPO_RIESGO where CIF_NIF IN ('B31845373', 'A08135055', 'A86056736', '201017488D');
+COMMIT;
+/
+EXIT;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+--                                                                            --
+--      Mainframe TSO Panel..                                                 --
+--                                                                            --
+--------------------------------------------------------------------------------
+
+-- To Deploy changes in SIM Via TSO Panel
+CLF SIM     := TSO CLFSIMX --> CLFSIMX0 --> 1 --> 2 (RK05PGBS24SIMULA ACTUALIZA SIM)-->X;
+CLF PRO     := TSO CLFPROX --> CLFPROX0 --> 1 --> 3
+Capital SIM := TSO BASSIM-->BASSIM00 -->1 -->1 --> x
+Capital PRO := TSO BASILE --> BASILE-->1-->2 --> x
+
+
+
+--------------------------------------------------------------------------------
+--                                                                            --
+--           CLF Concepts                                                     --
+--                                                                            --
+--------------------------------------------------------------------------------
+--LOGS
+   SELECT /*+ PARALLEL (A 4)*/ P_MES ,IDLOG ,USUARIO_EJECUCION ,PROCESO ,SENTENCIA ,
+          TO_CHAR(INICIO_PROCESO, 'yyyy-mm-dd hh24:mi:ss') AS   INICIO_PROCESO ,
+          TO_CHAR(FINAL_PROCESO, 'yyyy-mm-dd hh24:mi:ss') AS   FINAL_PROCESO ,
+          REGISTROS_TRATADOS ,ESTADO ,MENSAJE_ERROR ,P_VERSION ,P_PARTICION ,JCL ,USUARIO_SO 
+   FROM DCRCLF.CM_LOG_CONTROL_PROCESO where P_MES = 202206 order by INICIO_PROCESO desc; --where PROCESO='P_CARGA_FUSIONADA' and TRUNC(FECHA)> sysdate-3 order by fecha desc;
+
+   select * from dcrclf.CM_LOG_CONTROL_PROCESO where trunc(INICIO_PROCESO) > sysdate -4 /*and estado <>'OK' */ order by INICIO_PROCESO desc ;
+   SELECT * FROM DCRCLF.CM_LOG_CONTROL_PROCESO WHERE PROCESO = 'P_CARGA_FUSIONADA' AND TRUNC(INICIO_PROCESO)> SYSDATE-3 ORDER BY INICIO_PROCESO DESC;
+   select * from dcrclf.CM_LOG_CONTROL_PROCESO where  proceso = 'StatsTRUNCATE SIM' order by INICIO_PROCESO desc ;
+	
+   select * from DCRCLF.CLF_MTR_LOG;
+
+   select * from dcrclf.CM_LOG_TRACE order by fecha desc; -- WHERE 1=1 ORDER BY FECHA DESC , -- order by 1 desc;
+   select * from dcrclf.cm_log_control_proceso order by   INICIO_PROCESO desc;        
+   select * from dcrclf.CM_LOG_CONTROL_PROCESO where SENTENCIA = 'BS_BASILEA_MENSUAL_INI' order by INICIO_PROCESO desc; --CLF_BASIFUSI_AUX
+   select * from dcrclf_mensual.CM_LOG_TRACE order by fecha desc;
+   select * from BDD_ADABASE.CM_LOG_CONTROL_PROCESO where trunc(INICIO_PROCESO) > sysdate -4 order by INICIO_PROCESO desc ;
+   select * from BDD_ADABASE.CM_LOG_TRACE order by fecha desc;
+   select TABLESPACE_SIZE/1024 from dba_temp_free_space;
+   SELECT * FROM DCRMODCAR.Cm_Log_Trace T WHERE TRUNC(T.FECHA)>TRUNC(SYSDATE)-1 ORDER BY T.FECHA DESC;
+-- Find tables used in our schemas -- In what compiled code is it used and for what?
+   select * from dba_source where owner IN ('DCRCLF','BDD_ADABASE','DCRMODCAR') and upper(text) like '%BS_M_ACTIVO_ORDEN_01%';
+            --and upper(text) like '%M_BDIC_TA%'; --ficheros kvus0228 y kvus0229
+            --and upper(text) like '%D_ACTIVO_ORDEN_01%'; --ficheros kvus0308us y kvus0308
+            --and upper(text) like '%M_ACTIVO_ORDEN_01%'; --ficheros NA (PKG_APROVISIONAMIENTO)
+            --and upper(text) like '%_BASE_LIQUIDEZ%'; --ficheros NA 
+            --and upper(text) like '%D_PASIVO_LIQUIDEZ%'; --ficheros kvus0388 
+            --and upper(text) like '%M_PASIVO_LIQUIDEZ%'; --ficheros NA
+            --and upper(text) like '%PERSONAINV%'; --NO EXISTE
+   
+--Where does the information come from?
+   select * from dcrclf_mensual.prm_carga_inputs where nombre_tabla_input = 'BS_M_ACTIVO_ORDEN_01';
+-- In the DCRUME schema, log traces are typically recorded in table CONTROL_PROCESO
+   Select * from dcrume.control_proceso@baso1pro_plug order by fec_fin desc nulls last;   
+-- Log info 
+   SELECT * FROM DCRCLF.Cm_Log_Trace WHERE FECHA >TRUNC(SYSDATE) ORDER BY FECHA DESC;
+   SELECT * FROM DCRCLF.Cm_Log_control_proceso WHERE inicio_proceso >TRUNC(SYSDATE) ORDER BY inicio_proceso DESC;
+   SELECT * FROM DCRCLF.Cm_Log_control_proceso WHERE sentencia ='DMDET' ORDER BY inicio_proceso DESC;   
+-- Module
+   SELECT * FROM DCRCLF.PRM_PARAMETROS;
+   SELECT * FROM DCRCLF.PRM_LK_MODULOS;   
+--load provision :
+   select * from dcrclf.prm_carga_bs where flag_carga = 1 and nombre_tabla like 'BS_CLF%'; --and (tipo_carga = p_tipo_carga or p_tipo_carga = 0
+    * from dcrclf.prm_cst_maestros t1;
+   select distinct(OR_IDMES) from dcrclf.BS_MTR_CST_EMISIONES;
+--load monthly input
+   select * from dcrclf_mensual.prm_carga_inputs;
+   select nvl2(esquema_origen, esquema_origen || '.', '') as esquema_origen,tabla_origen,  nvl2(dblink_origen, '@' || dblink_origen, '') as dblink_origen, campo_periodo_origen,esquema_destino,nombre_tabla_input,campo_periodo_input
+   from dcrclf_mensual.prm_carga_inputs where flag_carga = 1 and tipo_carga = 1 and NOMBRE_TABLA_INPUT like '%BASILEA_FUSIONADA%';
+--load MTR
+   select t1.tabla_sas, t1.tabla_clf from dcrclf.prm_maestros t1 , dcrclf.prm_modulos_maestros t2 where t1.id_tabla = t2.id_tabla /* --and t2.id_modulo = p_modulo */and tabla_CLF = 'BS_MTR_PD' ;
+--CLF
+   select to_number(substr(valparm,1,6)) from bas_men.parametros_proceso@bas01pro_plug where codcsb = '0081' and codparm = '0001' and secparm = '01';
+--LOAD Inputs
+   select * from DCRCLF_MENSUAL.prm_carga_inputs where /*--flag_carga = 1 and*/ NOMBRE_TABLA_INPUT like '%MTR_MAPEO'And tipo_carga = p_tipo_carga;
+   select * from DCRCLF.BS_MTR_MAPEO_SECTORES;
+   select * from DCRCLF.SAS_MTR_MAPEO_SECTORES;
+   select * from dcrclf.prm_maestros where TABLA_CLF = 'BASILEA_FUSIONADA'; --(ID_TABLA,TABLA_SAS,TABLA_CLF,TIPO_MTR)VALUES(64,'SAS_MTR_MAPEO_SECTORES','BS_MTR_MAPEO_SECTORES',1);
+   select * from dcrclf.prm_modulos_maestros;
+--partitions created more than six months ago and have data
+   select PARTITION_NAME from ALL_TAB_PARTITIONS p where table_name = 'BS_ASG_POTENCIAL_CST' and to_number(substr(PARTITION_NAME,3,6)) <= to_number(to_char(ADD_MONTHS(to_date(202206,'YYYYMM'),-12),'YYYYMM'));
+--MAILs :
+   select * from DCRCLF.CLF_MTR_DESTINATARIOS;
+--Table descriptions of modules
+    select * from dcrclf.prm_lk_modulos;
+--CLF BASILEA
+  --period to load(cargar)
+    select or_idmes, flag_input, flag_bs from dcrclf.prm_carga_basifusi;
+--call dcrclf.pkg_load_masters.p_process --with modulo 90  
+    select * from all_source where lower(text) like '%bs_cst_portfolio%';
+--DBLINK
+    select * from all_db_links;
+--STRESS
+   select * from all_tables where table_name like '%GARAN%';        
+   select * from dcrclf.BS_MTR_CST_GARANTIAS_EPC;
+   select * from dcrclf.SAS_MTR_CST_GARANTIAS_EPC;
+   select t1.tabla_clf, t1.tipo_mtr from dcrclf.prm_cst_maestros t1;
+   select OR_TIPO_GARANTIA from DCRCLF.BS_BASILEA_FUSIONADA;
+   select * from dcrclf.MTR_CST_SEGMENTACION;
+   select * from dcrclf.BS_MTR_CST_GARANTIAS_EPC where or_idmes = 202112;
+   select count(*) from dcrclf.BS_MTR_CST_GARANTIAS_EPC where or_idmes = 202112; --1222058
+   select count(*) from dcrclf.BS_MTR_CST_GARANTIAS_EPC where or_idmes = 202112 and CAPITAL_INSURANCE is not null; --879977
+   select count(*) from dcrclf.BS_MTR_CST_GARANTIAS where or_idmes = 202112 and CAPITAL_INSURANCE is not null; --889326
+   select distinct(OR_IDMES) from dcrclf.BS_CST_PORTFOLIO;
+   select * from dcrclf.bs_ww_risk_2 where or_idmes = 202101;
+-- Database info
+   select  instance_name, upper(host_name) from v$instance;
+   select name from v$database;        
+   select * from product_component_version
+   select  instance_name, upper(host_name) from v$instance@DCRBASORA2P;
+   select name from v$database@DCRBASORA2P;
+--Roles and privilegios :
+   select * from role_sys_privs;SELECT * FROM USER_SYS_PRIVS; SELECT * FROM USER_TAB_PRIVS;SELECT * FROM USER_ROLE_PRIVS; --ver roles de usuario
+--SQL query for the Oracle DBA that shows the tablespaces, the space used, the free space and their data files:
+   Select t.tablespace_name  "Tablespace",  t.status "Estado", ROUND(MAX(d.bytes)/1024/1024,2) "MB Tamaño",ROUND((MAX(d.bytes)/1024/1024) -  (SUM(decode(f.bytes, NULL,0, f.bytes))/1024/1024),2) "MB Usados", ROUND(SUM(decode(f.bytes, NULL,0, f.bytes))/1024/1024,2) "MB Libres", t.pct_increase "% incremento", SUBSTR(d.file_name,1,80) "Fichero de datos"  
+   FROM DBA_FREE_SPACE f, DBA_DATA_FILES d,  DBA_TABLESPACES t  WHERE t.tablespace_name = d.tablespace_name  AND f.tablespace_name(+) = d.tablespace_name AND f.file_id(+) = d.file_id and t.tablespace_name = 'DCRCLF' GROUP BY t.tablespace_name,   d.file_name,   t.pct_increase, t.status ORDER BY 1,3 DESC;
+                
+   select tabspace, sum(size_), sum(used) from (Select t.tablespace_name  as tabspace, t.status "Estado", ROUND(MAX(d.bytes)/1024/1024,2) as size_, ROUND((MAX(d.bytes)/1024/1024) - (SUM(decode(f.bytes, NULL,0, f.bytes))/1024/1024),2) as used, ROUND(SUM(decode(f.bytes, NULL,0, f.bytes))/1024/1024,2) "MB Libres",  t.pct_increase "% incremento", SUBSTR(d.file_name,1,80) "Fichero de datos"  
+   FROM DBA_FREE_SPACE@DCRBASORA2P f, DBA_DATA_FILES@DCRBASORA2P d,  DBA_TABLESPACES@DCRBASORA2P t WHERE t.tablespace_name = d.tablespace_name  AND f.tablespace_name(+) = d.tablespace_name AND f.file_id(+) = d.file_id and t.tablespace_name like 'DCRCLF_202012' GROUP BY t.tablespace_name,   d.file_name,   t.pct_increase, t.status ) t group by tabspace;
+       
+   Select t.tablespace_name  "Tablespace",  t.status "Estado",   ROUND(MAX(d.bytes)/1024/1024,2) "MB Tamaño", ROUND((MAX(d.bytes)/1024/1024) - (SUM(decode(f.bytes, NULL,0, f.bytes))/1024/1024),2) "MB Usados",  ROUND(SUM(decode(f.bytes, NULL,0, f.bytes))/1024/1024,2) "MB Libres", t.pct_increase "% incremento" 
+   FROM DBA_FREE_SPACE f, DBA_DATA_FILES d,  DBA_TABLESPACES t WHERE t.tablespace_name = d.tablespace_name  AND f.tablespace_name(+) = d.tablespace_name   AND f.file_id(+) = d.file_id  and t.tablespace_name = 'DCRCLF' GROUP BY t.tablespace_name,  t.pct_increase, t.status ORDER BY 1,3 DESC;
+   
+   SELECT owner, table_name, TRUNC(sum(bytes)/1024/1024) Meg, ROUND( ratio_to_report( sum(bytes) ) over () * 100) Percent
+   FROM
+   (SELECT segment_name table_name, owner, bytes  FROM dba_segments WHERE segment_type IN ('TABLE', 'TABLE PARTITION', 'TABLE SUBPARTITION') AND segment_name = 'BS_BASIFUS_IN_PORTFOLIO_CST'
+    UNION ALL
+    SELECT i.table_name, i.owner, s.bytes FROM dba_indexes i, dba_segments s  WHERE s.segment_name = i.index_name AND   s.owner = i.owner AND   s.segment_type IN ('INDEX', 'INDEX PARTITION', 'INDEX SUBPARTITION')AND i.table_name = 'BS_BASIFUS_IN_PORTFOLIO_CST'
+    UNION ALL
+    SELECT l.table_name, l.owner, s.bytes FROM dba_lobs l, dba_segments s WHERE s.segment_name = l.segment_name AND   s.owner = l.owner AND   s.segment_type IN ('LOBSEGMENT', 'LOB PARTITION') AND l.table_name = 'BS_BASIFUS_IN_PORTFOLIO_CST'
+    UNION ALL
+    SELECT l.table_name, l.owner, s.bytes FROM dba_lobs l, dba_segments s WHERE s.segment_name = l.index_name AND   s.owner = l.owner AND   s.segment_type = 'LOBINDEX' AND l.table_name = 'BS_BASIFUS_IN_PORTFOLIO_CST')
+   WHERE owner in UPPER('DCRCLF') GROUP BY table_name, owner HAVING SUM(bytes)/1024/1024 > 10  /* Ignore really small tables */ ORDER BY SUM(bytes) desc ;
+       
+--===========================================================================================================================================================
+--------------------------------------------------------------------------------
+--                                                                            --
+--           Capital Concepts                                                 --
+--                                                                            --
+--------------------------------------------------------------------------------      
+-- CAPITAL ERROR LOGS 
+SELECT proces, data_ini, data_fin, to_char(to_date('00:00:00','HH24:MI:SS') + (NVL(data_fin, sysdate) - data_ini), 'HH24:MI:SS') time,ESTAT, FINALITZAT
+     , REG_INS_OK, REG_INS_KO, REG_UPD_OK, REG_UPD_KO, ERROR_ORAC, ERROR_PROG, NUM_ERROR
+FROM bas_men.control_proces
+      -- FROM BAS_MEN.CONTROL_VOLCADO 
+       -- where proces like '%FNC_FUSIONADA_COREP BAS_MEN.BASILEA_FUSIONADA_COREP 2022%'
+order by data_ini desc; 
+
+select PROCES, 
+        TO_CHAR(DATA_INI, 'yyyy-mm-dd hh24:mi:ss') AS DATA_INI, 
+        TO_CHAR(DATA_FIN, 'yyyy-mm-dd hh24:mi:ss') AS DATA_FIN        
+        ,case when DATA_FIN is null then to_timestamp(to_char(sysdate, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') - to_timestamp(to_char(DATA_INI, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss')
+              else to_timestamp(to_char(DATA_FIN, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') - to_timestamp(to_char(DATA_INI, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') 
+         end AS DATE_DIF ,ESTAT ,FINALITZAT ,REG_INS_OK ,REG_INS_KO ,REG_UPD_OK ,REG_UPD_KO ,ERROR_ORAC ,ERROR_PROG ,NUM_ERROR
+        -- FROM dcrprop.CONTROL_PROCES 
+		-- FROM dcrprop.CONTROL_VOLCADO
+ FROM dcrprop.CONTROL_VOLCADO
+        -- where proces like '%QIS%'
+ order by data_ini desc;
+
+select PROCESO, FECHA_INI, FECHA_FIN, case when FECHA_FIN is null then to_timestamp(to_char(sysdate, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') - to_timestamp(to_char(FECHA_INI, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss')
+              else to_timestamp(to_char(FECHA_FIN, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') - to_timestamp(to_char(FECHA_INI, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') 
+              end AS DURACION, ESTADO, FINALIZADO, ERROR_ORAC, NUM_ERROR
+  FROM BDD_COREPS.CONTROL_PROCESO
+        --  where proceso like 'bka60011%'
+ order by fecha_ini desc;
+ 
+select PROCESO, 
+        TO_CHAR(FEC_INI, 'yyyy-mm-dd hh24:mi:ss') AS FEC_INI, 
+        TO_CHAR(FEC_FIN, 'yyyy-mm-dd hh24:mi:ss') AS FEC_FIN,
+        case when FEC_FIN is null then to_timestamp(to_char(sysdate, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') - to_timestamp(to_char(FEC_INI, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss')
+             else to_timestamp(to_char(FEC_FIN, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') - to_timestamp(to_char(FEC_INI, 'yyyy-mm-dd hh24:mi:ss'), 'yyyy-mm-dd hh24:mi:ss') 
+        end AS TIEMPO,ESTADO,FINALIZADO,REG_INS_OK,REG_UPD_OK,ERROR_ORAC,ERROR_PROG,NUM_ERROR
+from dcrprop_mensual.control_proceso
+        --where proceso like ('BKA10005%')
+order by FEC_INI desc
+
+select * from DCRUME.CONTROL_PROCESO order by FEC_INI DESC;
+-- Data Dictionary ALL_/DBA_/USER_/DBlink
+Select * from all_tab_partitions;
+select * from dba_segments;
+select * from dcrprop_202103.BASILEA@dcrbasora2p;
+select * from ALL_TAB_COLUMNS where OWNER = 'BAS_MEN' and TABLE_NAME in ('BS_BASILEA_FUSCOR_HASTA_201909') and column_name like '%CUR%';
+select * from SYS.all_tables where OWNER = 'BAS_MEN' and TABLE_NAME like 'BS_BASILEA_FUSCOR_HASTA_201909%';
+select * from ALL_DB_LINKS;
+select * from all_source where owner = 'BAS_MEN'
+        --   where owner in ('DCRPROP_MENSUAL','BAS_MEN', 'BASPROD')and TYPE in ('PROCEDURE','PACKAGE BODY','PACKAGE')
+        --   and  upper(text) like upper('%a%');
+SELECT * FROM DBA_TAB_PRIVS where owner ='BAS_MEN' and table_name in ('SACCR_CAMARA_COMPENSACION');
+SELECT OWNER, TABLE_NAME , STATUS , LAST_ANALYZED , TEMPORARY FROM ALL_TABLES; -- Normal Table
+SELECT * FROM ALL_TABLES WHERE TEMPORARY ='Y'; --Global Temporary Table
+SELECT OWNER, TABLE_NAME ,DEFAULT_DIRECTORY_NAME, A.*  FROM ALL_EXTERNAL_TABLES A; -- External Table
+SELECT OWNER , TABLE_NAME , COLUMN_NAME , DATA_TYPE, NULLABLE , LAST_ANALYZED FROM ALL_TAB_COLUMNS;
+SELECT * FROM ALL_SEQUENCES/INDEXES/IND_COLUMNS/Triggers/VIEWS/MVIEWS/TAB_STATISTICS/IND_STATISTIC/SCHEDULER_JOBS/CONSTRAINTS/CONS_COLUMNS/PART_TABLES/OBJECTS/ERRORS;
+
+-- To Test requirement
+Select fname,lname , NVL (lname,0) from Table ; -- It populate 0 in lname column where value is null
+Select marks , NVL2(marks , 'Not null', 0) from tbl ; -- It populate 0 if null value and Not null if some value is there
+Select marks , NVL2(marks , marks, 0) from tbl ; -- It populate 0 if null value and same as mark column value if some value is there
+select nullif ('a','b') from dual ; --if both are diff then return first
+select nullif ('a','a') from dual ; --if both are same then return null
+select coalesce (null , 1 , 2, 3) from dual; -- Return 1st not null value
+select coalesce('Nilesh','Nilu', null) from dual;-- Return Nilesh
+select coalesce(MobileNo,LandlineNo, null) from dual;-- Return Nilesh
+select Decode('Nilesh','Nilu', 'same','different') from dual; 
+SELECT DEPT,LISTAGG(ENAME,'-')WITHINGROUP(ORDER By ENAME) EMP_LIST FROM EMP_DATA GROUP BY DEPT;
+select * from BAS_MEN.ACCIONES_BS@BASORA1P_BASI1PRO where rownum <= 5;
+select * from (inner query) bf where unineg_l3 = 1900;
+SELECT * FROM BAS_MEN.ACCIONES_BS ORDER BY 1 DESC;
+SELECT LPAD(SUBSTR('9074885418',TRUNC(DBMS_RANDOM.VALUE(1,10)),3),LENGTH(DBMS_RANDOM.STRING('u',6)),'*') FROM DUAL; --u/l/a/x/p
+SELECT NVL,NVL2,NULLIF,COALESCE FROM DUAL;
+Select CASE when t1.OR_IDMES in (202206,202207,202208,202209,202210,202211,202212) then DECODE(t8.OR_IDMES,NULL,t3.unineg_l3,1900) END as unineg_l3 from tables;
+select * from DCRPROP.MAESTROS_BASILEA_COPIA_DCRPROP b where COPIA_EN_PROCESO = 'COPIA_FINAL_TABLAS' 
+         AND NOT EXISTS (select a.TABLE_NAME from all_tables a where a.owner = 'BAS_MEN' and a.TABLE_NAME = b.TABLA);
+select TABLA, COPIA_EN_PROCESO, count(1) from DCRPROP.MAESTROS_BASILEA_COPIA_DCRPROP group by TABLA, COPIA_EN_PROCESO having count(1) > 1;
+
+-- Call a procedure 
+EXEC  DCRPROP_MENSUAL.P_ENVIO_INFSAS('Basilea Titulizaciones sinteticas',1,'BAS_MEN');
+exec  DCRPROP_MENSUAL.P_MAE_INSERT_INFSAS('Basilea Titulizaciones sinteticas');
+EXEC  DCRPROP_MENSUAL.P_INSERT_DEST('ALDEGUER RIVERO, DANIEL', 'ALDEGUERD@bancsabadell.com', 'Negocio');
+EXEC  DCRPROP_MENSUAL.P_DET_INSERT_GRUP('MOD_SEGUIMIENTO', 'ALDEGUERD@bancsabadell.com');
+EXEC  DCRPROP_MENSUAL.P_MAE_INSERT_GRUP('MOD_SEGUIMIENTO', 'MODELOS SEGUIMIENTO');
+exec dcrprop_mensual.P_INSERT_INFSAS ('Basilea Titulizaciones sinteticas', 'CAP', 'Basilea - Titulizaciones Sinteticas', 'El proceso BASILEA - Titulizaciones Sinteticas ha finalizado.' || chr(10) ||  chr(10) ||'Para cualquier duda, podéis responder a este correo.' || chr(10) ||  chr(10) ||'Saludos.', 'bks10064', 'bkd40089');
+/
+PROC SQL;
+CONNECT TO ORACLE (user='DCRPROP_MENSUAL' password='DCRPROP_MENSUAL' path='basi1pro');
+EXECUTE(EXECUTE dcrprop_mensual.P_INSERT_INFSAS ('Basilea Carga Tabla HIS ACC BS', 'REPORT_CAP', 'BASILEA - Carga HISTORIAL ACC BS', 'Basilea', 'bks10064', 'null')) BY ORACLE;
+DISCONNECT FROM ORACLE;
+QUIT;
+/
+PROC SQL;
+update OBASDCRM.DET_INFORMES_SAS set OR_SUBJECT = 'BASILEA - Inserción Renta Variable', OR_TEXTO = "El proceso BASILEA - Inserción Renta Variable ha finalizado."  ||input('0D',$hex2.)||input('0D',$hex2.)|| "Se ha generado la tabla:"  ||input('0D',$hex2.)|| "BAS_MEN.RENTA_VARIABLE "  ||input('0D',$hex2.)||input('0D',$hex2.)|| "Para cualquier duda, podéis responder a este correo."||input('0D',$hex2.)||input('0D',$hex2.)|| "Saludos." where ID_INFORME = 110;
+QUIT;
+/
+
+or
+"
+BEGIN
+  dcrclf.p_carga_basifusi(0); Auto Process
+--dcrclf.p_carga_basifusi(1); Manual Process
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    raise_application_error(-20000, SQLERRM || ' -> traza: ' || dbms_utility.format_error_backtrace);  
+END;
+/
+"
+or
+"
+DECLARE
+v_sql VARCHAR2(300);
+BEGIN
+execute immediate ('DROP TABLE BDD_IFRS9_KQIS.KQ_EXE_PARAMETERS');
+BDD_IFRS9_KQIS.PK_KQIS.PR_KQ_20_Control_Simple('L2',202106,4);
+BDD_IFRS9_KQIS.PK_KQIS.PR_KQ_00_Lanzador;
+EXCEPTION
+when others then
+v_sql:='Error controlado';
+END;
+/
+"
+
+-- Trace log
+DECLARE 
+   V_PROCESO   VARCHAR2(30):='TRUNCATE SIM';
+   VG_TABLA     VARCHAR2(30);
+   VG_ROWCOUNT  NUMBER:= 0;
+   VG_IDLOG CM_LOG_CONTROL_PROCESO.IDLOG%TYPE;
+
+   CURSOR C_Alter is select COLUMN as sent from TABLE_NAME where partition_name = 1 ;
+   CURSOR C_stats is select COLUMN as table_name from TABLE_NAME;
+
+begin 
+  
+  FOR r in C_Alter LOOP
+   pkg_log_proceso.inicio_fase(v_proceso,r.table_name || '_' || r.partition_name,vg_idlog); --before truncate
+       begin
+	    	execute immediate  r.sent ;
+	    	pkg_log_proceso.final_fase(vg_idlog,VG_ROWCOUNT);
+       EXCEPTION
+	    WHEN others THEN
+	    	pkg_log_proceso.final_fase(vg_idlog,-1);
+       end;
+  END LOOP;
+  
+  For r in C_stats Loop
+	pkg_log_proceso.inicio_fase('Stats'|| v_proceso,r.table_name,vg_idlog); --before truncate
+	dbms_stats.gather_table_stats('DCRCLF', r.table_name, method_opt=>'for all columns size 1', degree => 4, estimate_percent=> dbms_stats.auto_sample_size);
+	pkg_log_proceso.final_fase(vg_idlog,VG_ROWCOUNT);
+  end loop;
+end ;
+/
+
+-- Exec DBMS_STATS
+EXEC dbms_stats.gather_table_stats('BAS_MEN','ACCIONES_BS', cascade=>true, method_opt=>'for all columns size 1', degree => 4, estimate_percent=> 1 );
+/
+BEGIN
+dbms_stats.gather_table_stats(ownname=>'DCRPROP_MENSUAL',tabname=>'BS_PE1601',partname=>'P_201911',
+estimate_percent=>dbms_stats.auto_sample_size,cascade=>true,
+method_opt=>'for all columns size 1', degree =>4);
+END;
+/
+
+-- Compile Schema Procedure and PACKAGE
+BEGIN
+   DBMS_UTILITY.COMPILE_SCHEMA(schema => 'DCRCLF', compile_all => FALSE);
+END;
+
+EXEC DBMS_DDL.alter_compile('PACKAGE', 'MY_SCHEMA', 'MY_PACKAGE');
+EXEC DBMS_DDL.alter_compile('PACKAGE', 'DCRCLF', 'pkg_aprovisionamiento');
+EXEC DBMS_DDL.alter_compile('PROCEDURE', 'DCRCLF', 'p_dmdet');
+
+-- Schema TABLESPACE
+select TABLESPACE_NAME, STATUS from dba_tablespaces where TABLESPACE_NAME in ('BAS_MEN', 'DCRPROP');
+/
+select ts.tablespace_name,
+       trunc(sum(ts.max_b)/1024/1024) Total,
+       trunc((sum(ts.max_b)-sum(ts.free_b))/1024/1024) Ocupado,
+       trunc(sum(ts.free_b)/1024/1024) Libre,
+       trunc((sum(ts.max_b)-sum(ts.free_b))*100/sum(ts.max_b)) as pct_ocu,autoextensible AUT
+  from (select a.file_id, a.tablespace_name, decode(a.autoextensible,'YES',a.maxsize-a.bytes+nvl(b.free,0),'NO',b.free) free_b, a.maxsize max_b, a.autoextensible
+          from (select file_id, tablespace_name, autoextensible, bytes, decode(autoextensible,'YES',maxbytes,bytes) maxsize
+                  from dba_data_files where online_status <> 'OFFLINE') a,
+               (select file_id, tablespace_name, sum(bytes) free
+                  from dba_free_space
+                 group by file_id, tablespace_name) b
+         where a.file_id=b.file_id(+)
+       ) ts
+ where ts.tablespace_name = 'DCRPROP'
+ group by tablespace_name,autoextensible
+ order by 1 asc;
+ /
+select owner as "Schema"
+, segment_name as "Object Name" , segment_type as "Object Type" , round(bytes/1024/1024,2) as "Object Size (Mb)" , tablespace_name as "Tablespace"
+from dba_segments where owner='DCRPROP' and segment_type = 'TABLE' order by round(bytes/1024/1024,2) desc;
+ 
+-- Truncate a Table
+TRUNCATE TABLE BAS_MEN.CAPITAL;
+
+-- DROP a Table
+DROP TABLE BAS_MEN.CAPITAL;
+
+-- Create TABLE
+CREATE TABLE BAS_MEN.PROVA_STDA
+   ( 
+   PROBA VARCHAR2(1000 BYTE)
+   ) PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING
+  STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT)
+  TABLESPACE "BAS_MEN" ;
+/ 
+CREATE TABLE BAS_MEN.FAIRVA_AGREGADO
+      (
+           SEGMENTO_COLA       VARCHAR2(18 BYTE)
+         , SEGMENTO_COLA_ORIG  VARCHAR2(12 BYTE)
+         , IN_METODE           VARCHAR2(4 BYTE)
+      );
+	--ROW STORE COMPRESS ADVANCED NOLOGGING
+/
+CREATE TABLE BDD_ADABASE.TR3_FASE1 
+	(OR_IDMES NUMBER(6,0),
+     CODIGO_POSTAL VARCHAR2(5 BYTE))
+    SEGMENT CREATION IMMEDIATE 
+	PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+	ROW STORE COMPRESS ADVANCED LOGGING
+	STORAGE(INITIAL 163840 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+	PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+	BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+	TABLESPACE TS_BDD_ADABASE_DAT
+	PARALLEL 4;	  
+/
+CREATE TABLE DCRCLF.BS_BASIFUS_IN_PORTFOLIO_CST AS
+select bf.OR_IDMES, bf.OR_IDREG, bf.R_IDFD, bf.R_IDFF, bf.OR_CODIGO_ENTIDAD_GARANTIA, bf.OR_TIPO_GARANTIA, bf.OR_CONTRATO_GARANTIA, bf.OR_CLUNICONTR, bf.OR_CLUNIENT, bf.OR_CLUNIPROD,
+SUBSTR(bf.OR_CODGAR,1,5) AS TIPO_GARANTIA, bp.EADGROSS, bf.OR_PROCED, bf.OR_NUMPERSONA
+from dcrclf.BS_BASILEA_FUSIONADA bf, DCRCLF.BS_IN_PORTFOLIO bp 
+WHERE bp.or_idmes = 202112
+AND bp.SEG_ST_POST in (109100,109210,109220,303110,303210,303310,304110,304121,304122,403110,403210,403310,404110,404121,404122) and bp.or_idmes = bf.or_idmes and bp.or_idreg = bf.or_idreg;	
+	  
+-- Comment on column
+COMMENT ON COLUMN BDD_IFRS9_KQIS.KQ_EXE_PARAMETERS.PARAM IS 'Parametro';
+
+--Create INDEX
+CREATE INDEX BDD_IFRS9_KQIS.I_CONTROL_PROCES_KQ ON BDD_IFRS9_KQIS.KQ_CONTROL_PROCES (PROCES, ESTAT, DATA_INI) TABLESPACE TS_BDD_IFRS9_KQIS_IDX ;
+CREATE INDEX BASE_MOROSOS_INX ON BAS_MEN.BASE_MOROSOS (ID_OBLIGORS, OR_IDMES) PARALLEL;
+
+-- COMMIT and Rollback
+commit;
+rollback;
+
+-- Grant / REVOKE Roles and Permission
+GRANT SELECT, DELETE, INSERT, UPDATE ON BAS_MEN.FAIRVA_AGREGADO TO DCRPROP_MENSUAL;
+REVOKE INSERT ON BAS_MEN.FAIRVA_AGREGADO FROM BDD_COREPS;
+
+-- Insert data from other TABLE
+INSERT INTO BAS_MEN.BS_M_ACTIVO_ORDEN_01 SELECT MESCONTABLE FROM BAS_MEN.M_ACTIVO_ORDEN_01 WHERE MESCONTABLE = 202203;
+INSERT INTO BAS_MEN.CAPITAL(COLUMNS)VALUES(Datas);
+insert into dcrprop.MAESTROS_BASILEA_COPIA_DCRPROP VALUES ('RATINGSIBIS_GRUP','VOLCADO MAESTROS 10', 'N' ,'S', 'COPIA_FINAL_TABLAS' ,'S', SYSDATE , null);
+INSERT INTO DCRPROP_MENSUAL.MAE_INFORMES_SAS SELECT * FROM DCRPROP_MENSUAL.MAE_INFORMES_SAS@BAS01PROPLUG;
+INSERT INTO BAS_MEN.Maestros_Basilea_Copia_Pro SELECT 'TM_CAL_VINC_CONTRATOS_SCORING', 'DCRPROP_MENSUAL','S', 'N', sysdate, 'S' from dual;
+INSERT INTO BAS_MEN.Maestros_Basilea_Copia_Pro SELECT 'PE1601_AVALISTAS', 'BAS_MEN','N', 'N', sysdate, 'S' from dual;
+
+-- ALTER TABLE
+ALTER TABLE BAS_MEN.PERIMETRO_BASILEA_2 DROP COLUMN SEGMENTO_COLA;
+ALTER TABLE BAS_MEN.PERIMETRO_BASILEA_2 ADD SEGMENTO_COLA_ORIG VARCHAR2(12 BYTE);
+ALTER TABLE BAS_MEN.ADDON_COMMODITIES    MODIFY SEGMENTO_COLA VARCHAR2(18 BYTE);
+ALTER TABLE BAS_MEN.BS_PERIMETRO_BASILEA DROP PARTITION P_202203;
+ALTER TABLE  DCRPROP_MENSUAL.AMORTIZADOS RENAME TO AMORTIZADOS_HIST_XXX;
+ALTER TABLE table_name COLUMN old_name TO new_name
+ALTER system kill session '447,53022' IMMEDIATE; 
+ALTER TABLE DCRPROP.MAESTRO_FACTORING_COBERTURA MOVE NOCOMPRESS NOLOGGING;
+ALTER TABLE DCRPROP.MAESTRO_MOROSO_CT_STDA MOVE ROW STORE COMPRESS ADVANCED NOLOGGING;
+
+-- Add partitions :
+ALTER TABLE schema.tabla ADD PARTITION P_AAAAMM VALUES LESS THAN (AAAMM2) NOLOGGING COMPRESS PCTFREE 0 INITRANS 1 MAXTRANS 255 STORAGE (INITIAL 160K MINEXTENTS 1 MAXEXTENTS 2147483645 BUFFER_POOL DEFAULT);
+ALTER TABLE BDD_IFRS9_MENSUAL.BS_REP_OUTPUT ADD PARTITION "P_202103" VALUES LESS THAN (202104) ROW STORE COMPRESS ADVANCED LOGGING TABLESPACE "TS_IFRS9_MENSUAL_DAT";
+ALTER TABLE DCRPROP_MENSUAL.BS_TIPOS_BCE_PRE ADD PARTITION "P_202101" VALUES LESS THAN (202102) TABLESPACE TS_DCRPROPMEN_DAT;
+
+-- Exchange partition:
+ALTER TABLE DCRCALIB.BS_CAL_DAC_REF_CAT_MOR_OFI EXCHANGE PARTITION "P_201309" WITH TABLE DCRCALIB.TR_CAL_DAC_REF_CAT_MOR_OFI INCLUDING INDEXES WITHOUT VALIDATION;
+
+-- Update TABLE
+UPDATE BAS_MEN.CONTROL_PROCES SET ESTAT = 'FINALIZADO'WHERE PROCES  = VV_Proces AND ESTAT = 'INICIADO';
+
+-- Delete 
+DELETE FROM DCRPROP_MENSUAL.DET_GRUPO_EMAILS_SAS where ID_GRUP = 'CONTRAPARTIDA' and ID_DESTINATARIO = '52';
+
+-- Merge
+MERGE INTO BAS_MEN.BASILEA Upd 
+      USING BAS_MEN.MAESTRO_FACTORING_COBERTURA Sel ON (FLOOR(sel.OR_CLUNICONTR/100) = CASE WHEN Upd.OR_REFOPE IS NOT NULL THEN Upd.OR_REFOPE ELSE Upd.OR_CLUNICONTR END)
+      WHEN MATCHED THEN UPDATE SET Upd.IN_RATEXTAVA2    = Sel.RATEXT_AVALISTA;
+/
+MERGE INTO DCRCLF.BS_MTR_CST_GARANTIAS G
+    USING (SELECT R_IDFF FROM(select R_IDFF- from dcrclf.BS_BASIFUS_IN_PORTFOLIO_CST BAS where BAS.OR_IDMES = V_MES_PROCESO
+	WHEN MATCHED THEN UPDATE SET G.YEAR_CONSTRUCCION = AGR1.YEAR_CONSTRUCCION
+	  
+-- DECODE
+DECODE(SIGN(trunc(DECODE(SUM(FI_RWASTDA * B.FI_EXPSTDA_FULLY_CON),0,0.01, SUM(FI_RWASTDA * B.FI_EXPSTDA_FULLY_CON))
+decode(sum(B.FI_EXPSTDA_FULLY_CON),0, 0.01, sum(B.FI_EXPSTDA_FULLY_CON)),2)-0.35),-1, 'SI', 0, 'SI','NO') as  RWA_NEW
+
+-- CASE
+CASE WHEN SUM(FI_RWASTDA * B.FI_EXPSTDA_FULLY_CON) = 0 THEN 0.01 ELSE  SUM(FI_RWASTDA * B.FI_EXPSTDA_FULLY_CON)
+
+-- SEQUENCE
+create sequence trazas_seq increment by 1 start with 1 nocache;
+
+-- PROCEDURE
+CREATE OR REPLACE procedure borrar_tabla (P_OWNER VARCHAR2, P_TABLA VARCHAR2) is
+  V_AUX NUMBER;
+BEGIN
+      SELECT COUNT(*) INTO V_AUX FROM ALL_TABLES WHERE OWNER = P_OWNER AND TABLE_NAME = P_TABLA;
+      IF (V_AUX = 1) THEN
+         EXECUTE IMMEDIATE 'DROP TABLE '||P_OWNER||'.'||P_TABLA;
+         DBMS_OUTPUT.PUT_LINE('Eliminada la tabla '||P_OWNER||'.'||P_TABLA);
+      END IF;
+END;
+
+/
+
+-- CURSOR
+CREATE OR REPLACE PROCEDURE lance_starting_point IS
+    CURSOR C_APLI IS SELECT * FROM DCRSTEST.ST18_SP_MTR_PARAMETROS WHERE ACTIVO = 'S' ORDER BY ORDEN;
+BEGIN
+       FOR REG IN C_APLI LOOP
+           IF REG.APLICACION = 'SP' THEN
+             DCRSTEST.PKG_ST18_SP_STARTING_POINT.P_INICIO_ST18_SP (REG.EXTERNAS,REG.FUSIONADA,REG.FASE_UNO,REG.AMPLIA,REG.INDMOR,REG.BA,REG.FILL,REG.AUX_F2,REG.MAESTROS,REG.FASE_DOS,REG.FASE_TRES);
+           ELSIF REG.APLICACION = 'SP_2' THEN
+             DCRSTEST.PKG_ST18_SP_STARTING_POINT_2.P_INICIO_ST18_SP (REG.EXTERNAS,REG.FUSIONADA,REG.FASE_UNO,REG.AMPLIA,REG.INDMOR,REG.BA,REG.FILL,REG.AUX_F2,REG.MAESTROS,REG.FASE_DOS,REG.FASE_TRES);
+           ELSIF REG.APLICACION = 'SP_3' THEN
+             DCRSTEST.PKG_ST18_SP_STARTING_POINT_2.P_INICIO_ST18_SP (REG.EXTERNAS,REG.FUSIONADA,REG.FASE_UNO,REG.AMPLIA,REG.INDMOR,REG.BA,REG.FILL,REG.AUX_F2,REG.MAESTROS,REG.FASE_DOS,REG.FASE_TRES);
+           END IF;
+       END LOOP;
+END LANCE_STARTING_POINT;
+/
+
+
+
+-- PRAGMA_AUTONOMOUS_TRANSACTION
+CREATE OR REPLACE PROCEDURE str_reset_fase
+       (in_proceso   in varchar2) is
+      PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+       delete DCRSTEST.STR_CONTROL_PROCESO where dia_ejecucion = trunc(sysdate) and proceso = in_proceso;
+       commit;
+END;
+/
+
+-- FUNCTION
+
+CREATE OR REPLACE function fnc_normsinv(ARG IN FLOAT) 
+ETURN FLOAT PARALLEL_ENABLE IS
+  -- constants for the inverse normal
+  A0  FLOAT := 2.50640150545279;
+
+  sign      NUMBER(1);
+  y         FLOAT;
+  z         FLOAT;
+  vn_cum    FLOAT;
+  cal       VARCHAR2(1):='N';
+
+BEGIN
+   If arg = 0.5 Then
+      vn_cum := 0;
+   ElsIf arg >= 0.5 Then
+      cal := 'S';
+      sign := 1;
+      y := arg - 0.5;
+   Else
+      cal := 'S';
+      sign := -1;
+      y := 0.5 - arg;
+   End If;
+
+   -- if y is relatively small
+   If cal = 'S' Then
+      If y <= 0.42 Then
+         vn_cum := sign * y * (A0 * power(y,2));
+      Else
+         z := y
+         vn_cum := sign * y;
+      End If;
+   End If;
+
+   Return(vn_cum);
+END;
+/
+
+-- TRIGGER
+create or replace trigger TRG_TRAZAS_SEQ BEFORE INSERT OR UPDATE ON BDD_COREPS.TRAZAS
+for each row
+declare
+v_newval number(12):=0;
+begin
+  if inserting then
+    select trazas_seq.nextval into v_newval from dual;
+    :NEW.SEQ :=v_newval;
+  end if;
+end;
+/
+
+-- GRANT
+GRANT DELETE,INSERT,SELECT,UPDATE ON total_tipo_sas TO role_sas_basilea_dcrclf;
+
+-- PACKAGE
+create or replace PACKAGE BDD_.PKG_NEW AS
+    PROCEDURE P_PROCESO;
+END PKG_CST_ADABASE;
+/
+
+-- PACKAGE BODY
+create or replace PACKAGE BODY BDD.PKG_NEW AS
+/*
+   <MOD>   <USER>   <FECHA>    <COMENTARIO>
+     0      LQM     01/02/22   VERSION PROCESO ADABASE CON INFORMACION DE STRESS TEST CLIMATICO
+*/
+  VG_OR_IDMES   NUMBER;
+  EXISTE        NUMBER;
+  VGE_ERROR_VALIDACION EXCEPTION;
+
+cursor CurTrimestres (param_periodo number) is 
+	Select trimestre from (
+	select 
+	  to_number(case when substr(param_periodo, 5, 6) in ('01', '02', '03') Then substr(param_periodo, 1, 4) - 1 || '12'
+		 when substr(param_periodo, 5, 6) in ('10', '11', '12') Then substr(param_periodo, 1, 4) || '09'
+		 when substr(param_periodo, 5, 6) in ('07', '08', '09') Then substr(param_periodo, 1, 4) || '06'
+		 when substr(param_periodo, 5, 6) in ('04', '05', '06') Then substr(param_periodo, 1, 4) || '03'  
+	  end) T 
+	From dual
+	where (trimestre >= 201712) or (trimestre > 201712 and param_periodo = 201712)
+	order by 1;
+	
+Function f_es_trimestre (p_periodo in number) return boolean is
+  Begin
+    If Substr(p_periodo, 5, 6) In (03,06,09,12) Then
+      Return true;
+    End If;
+    Return false;
+  End;
+
+END BDD.PKG_NEW;
+
+-- VIEW
+CREATE OR REPLACE VIEW v_bas_fus_lgd_base (or_idreg,impltv_ori) AS SELECT * FROM  TABLE;
+
+-- SPOOL
+spool DO.log
+  @@Synonyms.sql
+  @@Types.sql
+  @@Type\O_TO_BUFFER_Y1.sql
+  @@Type\SYS_PLSQL_2263421_1983_1.sql
+  EXEC Dbms_Utility.compile_schema(USER, FALSE);
+spool off
+exit
+
+-- SYNONYM
+PROMPT CREATE SYNONYM bs_rorwa_rep_bs
+CREATE SYNONYM bs_rorwa_rep_bs FOR rorwa.bs_rorwa_rep_bs;
+
+-- TYPE
+CREATE OR REPLACE TYPE tickertype;
+/ 
+
+--==============================================SQL PLSQL CONCEPTS ==================================================================
+
+-- CASE
+    Case 
+      When Sel1.In_metode = 'AIRB' Then Sel1.fi_eadconairb
+      When Sel1.In_metode <> 'AIRB' And Sel1.fi_tipexp Not In ('OTC', 'Repos') Then Sel1.or_disptocon+Sel1.or_ajuvalcon+(Sel1.fi_ccfstda*(Sel1.or_disblecon+Sel1.or_avalescon))
+      When Sel1.or_ctaInd In (4704800, 4704000) Then 1 
+	  When sum(Sel1.ead_m0) over (partition by Sel1.r_idff,Sel1.r_idfd,Sel1.id_entidad,Sel1.id_metode_ori) Then 1
+	  When nullif(Sel1.fi_eadairb_pe, 0) Then 1
+	  WHEN max(Sel.scope_dta) Then 1
+	  WHEN rank() over (partition by Sel.idff,Sel.idfd,Sel.id_entidad order by abs(Sel.ead_m0) desc,Sel.ead_m0 desc) Then 1
+	  -- RANK() OVER (partition by period, idff, idfd order by EAD_TOT desc , OR_TITULARITAT desc ) c_rank
+	  When Substr(Sel1.fi_epicon,1,7) = '0100101' And Upper(Sel1.segmbs_dc) Not In ('ENTIDADES FINANCIERAS') Then 1
+	  When Nvl(Sel1.or_clunicontr_asoc, '0') Not In ('999999999999999', '000000000000000', '0') Then To_char(Sel1.or_clunicontr_asoc)
+	  When Sel1.or_idmes Between 201712 And 201912 Then Sel1.in_indmor
+	  When Sel1.or_idmes >= 202001 Then Case When Sel1.in_indmor_ini = 'SI' Then 'SI' Else Sel1.in_indmor End 
+	  when t1.OR_IDMES in (202206,202207,202208,202209,202210,202211,202212) then DECODE(t8.OR_IDMES,NULL,t3.unineg_l3,1900) 
+	  when t1.OR_IDMES in (202206,202207,202208,202209,202210,202211,202212) then decode(nvl(Sel1.contrato,Sel1b.contrato),null, 0,1) 
+      when (SelF1.stage_ct_m0 = 3 or SelF21.stage_ct_m1 = 3)then 1	
+      when tab_1.re_flag_m6 = 1 then nvl(tab_1.re_prov_m6 * (tab_1.ead_m0 / nullif(tab_1.re_ead_m6, 0)), 0)	  
+      Else 0 
+    End As scope_dta
+	
+	case 
+         when A.empresa = 'G1' then 90461||macro||depen
+         when A.empresa = 'G4' then 90464||macro||depen  
+         when A.empresa = 'G5' then 90465||macro||depen 
+         when A.empresa = 'G7' then 90467||macro||depen
+         else a.or_entity||macro||depen 
+    end as or_refope,
+        0 as or_provapl_OK,
+	
+	CASE WHEN  CONSINPD_12M=1 AND PD_12M<>1 THEN ENTIDAD||SEGMODPD||PUT(CONSINPD_12M,2.)||SUBSTR(COMPRESS(PUT(PD_12M,Z12.12),'., ',''),1,7)
+         WHEN  CONSINPD_12M=1 AND PD_12M=1  AND STATUS_BM IN ('PEC','FOR') THEN ENTIDAD||SEGMODPD||PUT(CONSINPD_12M,2.)||"9999998"
+         WHEN  CONSINPD_12M=0 OR  PD_12M=1  THEN ENTIDAD||SEGMODPD||PUT(CONSINPD_12M,2.)||"9999999"
+    END AS CODMODPD_12M
+	
+    case 
+	   when FI_MATAIRB < 5 then FI_MATAIRB
+       when or_vidres not in (0,99999999,88888888) and or_vidres is not null then or_vidres/365
+       when or_fecvto > 19000000 and or_fecvto < 20990101 then (calculated fecvto - calculated fecpro)/365
+     else 5
+	 
+	case 
+      	(case when NIFCIF in ('?','','0' ) then or_nomper  when Upper(or_nomper) like '%LRA%' then or_nomper  else or_nomper end ) IN ('?','','0' ) then 0
+        when sum(EADGROSS) over (partition by (case when NIFCIF in ('?','','0' ) then or_nomper when Upper(or_nomper) like '%LRA%' then or_nomper else or_nomper end ) ) >3000000 then 1
+        when sum(EADGROSS) over (partition by (case when NIFCIF in ('?','','0' ) then or_nomper when Upper(or_nomper) like '%LRA%' then or_nomper else or_nomper end ) ) < 3000000 then 0
+    end as Analisis_Individual
+
+    SELECT product_name, list_price,
+               CASE WHEN list_price > 0 AND list_price < 600 THEN 'Mass' 
+                          WHEN list_price >= 600 AND list_price < 1000 THEN 'Economy' 
+                          WHEN list_price between 1000 AND 2000 THEN 'Luxury' 
+                          WHEN Productid in (1400, 1500) THEN 'Simple'
+                          ELSE 'Grand Luxury' 
+              END product_group 
+    FROM products WHERE category_id = 1 ORDER BY product_name;--Case is also like IF THEN ELSE
+	
+	select CASE 'Dog'
+        When 'Cat' Then '1'
+        When 'cow' Then '2'
+        When 'Dog' Then '3'
+        When 'Tiger' Then '4'
+        Else 'other Animal'
+        End Animal 
+        from Dual ;
+--============================================== PLSQL Anonymous Block : Test Script ==================================================================
+--------------------
+-- Test Script 01 --
+--------------------
+declare
+  v_dummy NUMBER;
+  v_usuario varchar2(20);
+  
+  procedure insert_log (NUM IN NUMBER, DESCR in VARCHAR2, RESULT in VARCHAR2) is
+    begin
+      insert into PRBX_LOG (PRUEBA,DESCRIPCION,RESULTADO)values(NUM,DESCR,RESULT);
+    end;    
+        
+begin
+    select user into v_usuario from dual; 
+    select count(*) into v_dummy from dba_tables where owner = v_usuario and table_name = 'PRBX_LOG';
+   
+    if v_dummy = 1 then   
+       EXECUTE IMMEDIATE ('DROP TABLE PRBX_LOG');   
+    end if;
+       
+    EXECUTE IMMEDIATE('CREATE TABLE PRBX_LOG( PRUEBA NUMBER,DESCRIPCION VARCHAR2(40),RESULTADO VARCHAR2(2))');  
+   
+	select count(*) into v_dummy from dba_tables where owner = v_usuario and table_name = 'PRBX_PRUEBA';
+   
+    if v_dummy = 1 then   
+       EXECUTE IMMEDIATE ('DROP TABLE PRBX_PRUEBA');
+    end if;
+   
+    EXECUTE IMMEDIATE('CREATE TABLE PRBX_PRUEBA( CAMPO1 NUMBER,CAMPO2 VARCHAR2(200))');
+                        
+    INSERT_LOG(1,'Creación de Tabla', 'OK');
+    commit;
+   
+    Insert into PRBX_PRUEBA (campo1, campo2) values(1111, 'Texto de Prueba');
+    commit;
+   
+    v_dummy := 0;
+    select count(*) into v_dummy from PRBX_PRUEBA;
+    
+    if v_dummy = 1 then
+       INSERT_LOG(2,'Insert', 'OK');
+    else
+       INSERT_LOG(2,'Insert', 'KO'); 
+    end if;   
+    
+    commit;
+    
+    update PRBX_PRUEBA set campo1 = 222222;
+   
+    if sql%rowcount = 1 then
+      INSERT_LOG(3,'Update', 'OK');
+    else
+       INSERT_LOG(3,'Update', 'KO'); 
+    end if;   
+    
+    commit;
+   
+exception
+   when others then
+      INSERT_LOG(999,SQLCODE||' - '||sqlerrm, 'KO'); 
+      RAISE;
+end;
+/
+   --  select * from PRBX_LOG;
+   
+--------------------
+-- Test Script 02 --
+-- Input table : DCRPROP_MENSUAL.MAESTRO_PERSONAS_GRUPO ,MAESTRO_PERSONAS
+-- Output table : PERS_GRUPO , DATOS_GRUPO_PERS ,DATOS_GRUPO_PERS_TEMP0,DATOS_GRUPO_PERS_TEMP1
+--------------------
+ declare
+
+  vn_numerr   number (4);
+  vv_count    integer;
+  VV_MENSAJE  varchar2(255);
+  VV_ROWID    number(10);
+  VV_PROGRAMA varchar2(15);
+
+BEGIN
+
+  VV_PROGRAMA := 'BKU00005';
+  vv_count := 0;
+
+  fnc_truncate_table('DCRPROP_MENSUAL.PERS_GRUPO');
+  fnc_truncate_table('DCRPROP_MENSUAL.DATOS_GRUPO_PERS_TEMP1');
+  fnc_truncate_table('DCRPROP_MENSUAL.DATOS_GRUPO_PERS_TEMP0');
+
+  VN_NUMERR:= 1;
+  
+  INSERT INTO DCRPROP_MENSUAL.CONTROL_PROCESO (PROCESO, FEC_INI, ESTADO)
+         VALUES (VV_PROGRAMA||' - PERS_GRUPO', SYSDATE, 'INICIADO');
+  COMMIT;
+
+  VN_NUMERR:= 2;
+  
+  INSERT /*+ APPEND */ INTO DCRPROP_MENSUAL.PERS_GRUPO
+  SELECT PP.ID_MES
+         , PP.ID_PERSONA AS ID_GRUPO
+         , PP.ID_PERRELA AS ID_PERSONA
+         , TRIM(PE.ME_NOMBRE)||' '||TRIM(PE.ME_PRIAPEL)||' '||TRIM(PE.ME_SECAPEL) as NOM
+         , PE.ID_TIPIDEF AS ID_TIP_IDE_PER
+         , PE.ID_IDEFISC AS ID_PER_PER
+         , PP.SW_GRUPO
+         , PE.ID_PAIS
+  FROM DCRPROP_MENSUAL.MAESTRO_PERSONAS_GRUPO PP,
+       DCRPROP_MENSUAL.MAESTRO_PERSONAS  PE
+  WHERE PP.ID_PERRELA = PE.ID_PERSONA
+    AND PP.ID_RELPEPE = 90
+    AND PP.ID_MES = PE.ID_MES
+    AND PP.ID_MES = &FECHA_ACTUAL ;
+
+
+  vv_count := SQL%ROWCOUNT;
+  COMMIT;
+
+  VN_NUMERR:= 3;
+  
+  UPDATE DCRPROP_MENSUAL.CONTROL_PROCESO
+    SET ESTADO = 'FINALIZADO',
+       FEC_FIN = SYSDATE,
+       TIEMPO = (current_timestamp - FEC_INI),
+       FINALIZADO = 'OK',
+       REG_INS_OK = vv_count
+  WHERE PROCESO = VV_PROGRAMA||' - PERS_GRUPO'
+    AND ESTADO  = 'INICIADO';
+  COMMIT;
+
+  VN_NUMERR:= 4;
+  
+  INSERT INTO DCRPROP_MENSUAL.CONTROL_PROCESO (PROCESO, FEC_INI, ESTADO)
+         VALUES (VV_PROGRAMA||' - DATOS_GRUPO_PERS_TEMP0', SYSDATE, 'INICIADO');
+  COMMIT;
+
+  VN_NUMERR:= 5;
+  
+  INSERT /*+ APPEND */ INTO DCRPROP_MENSUAL.DATOS_GRUPO_PERS_TEMP0
+  SELECT PP.ID_MES
+       , PP.ID_GRUPO
+       , TRIM(TRIM(PE.ME_NOMBRE)||' '||TRIM(PE.ME_PRIAPEL)||' '||TRIM(PE.ME_SECAPEL)) as NOMBRE_GRUPO
+       , PE.ID_TIPIDEF
+       , PE.ID_IDEFISC
+       , PE.ID_PERBULL
+       , PP.ID_PERSONA
+       , PP.NOM
+       , PP.ID_TIP_IDE_PER
+       , PP.ID_PER_PER
+       , PE.sw_tippersbull
+       , PP.SW_GRUPO
+       , PP.ID_PAIS
+  FROM DCRPROP_MENSUAL.PERS_GRUPO PP,
+       DCRPROP_MENSUAL.MAESTRO_PERSONAS PE
+ WHERE PP.ID_GRUPO     = PE.ID_PERSONA (+)
+   AND PP.ID_MES = PE.ID_MES
+   AND PP.ID_MES = &FECHA_ACTUAL;
+
+  vv_count := SQL%ROWCOUNT;
+  COMMIT;
+
+  VN_NUMERR:= 6;
+  
+  UPDATE DCRPROP_MENSUAL.CONTROL_PROCESO
+    SET ESTADO = 'FINALIZADO',
+       FEC_FIN = SYSDATE,
+       TIEMPO = (current_timestamp - FEC_INI),
+       FINALIZADO = 'OK',
+       REG_INS_OK = vv_count
+  WHERE PROCESO = VV_PROGRAMA||' - DATOS_GRUPO_PERS_TEMP0'
+    AND ESTADO  = 'INICIADO';
+  COMMIT;
+
+  VN_NUMERR:= 7;
+  
+  INSERT INTO DCRPROP_MENSUAL.CONTROL_PROCESO (PROCESO, FEC_INI, ESTADO)
+         VALUES (VV_PROGRAMA||' - DATOS_GRUPO_PERS_TEMP1', SYSDATE, 'INICIADO');
+  COMMIT;
+
+  VN_NUMERR:= 8;
+  
+  INSERT /*+ APPEND */ INTO DCRPROP_MENSUAL.DATOS_GRUPO_PERS_TEMP1
+  SELECT ID_MES
+          , MAX(ID_GRUPO) AS ID_GRUPO
+       , ID_PERSONA
+  FROM DCRPROP_MENSUAL.DATOS_GRUPO_PERS_TEMP0
+  WHERE ID_MES = &FECHA_ACTUAL
+  GROUP BY ID_MES
+         , ID_PERSONA;
+
+
+  vv_count := SQL%ROWCOUNT;
+  COMMIT;
+
+  VN_NUMERR:= 9;
+  
+  UPDATE DCRPROP_MENSUAL.CONTROL_PROCESO
+    SET ESTADO = 'FINALIZADO',
+       FEC_FIN = SYSDATE,
+       TIEMPO = (current_timestamp - FEC_INI),
+       FINALIZADO = 'OK',
+       REG_INS_OK = vv_count
+  WHERE PROCESO = VV_PROGRAMA||' - DATOS_GRUPO_PERS_TEMP1'
+    AND ESTADO  = 'INICIADO';
+  COMMIT;
+
+  VN_NUMERR:= 10;
+  
+  INSERT INTO DCRPROP_MENSUAL.CONTROL_PROCESO (PROCESO, FEC_INI, ESTADO)
+         VALUES (VV_PROGRAMA||' - DATOS_GRUPO_PERS', SYSDATE, 'INICIADO');
+  COMMIT;
+
+  VN_NUMERR:= 11;
+  
+  DELETE DCRPROP_MENSUAL.DATOS_GRUPO_PERS;
+  
+  INSERT /*+ APPEND */ INTO DCRPROP_MENSUAL.DATOS_GRUPO_PERS
+  SELECT A.ID_MES
+       , A.ID_GRUPO
+       , A.ID_PERSONA
+       , A.NOMBRE_GRUPO
+       , A.ID_TIPIDEF
+       , A.ID_IDEFISC
+       , A.ID_PERBULL
+       , A.NOM
+       , A.ID_TIP_IDE_PER
+       , A.ID_PER_PER
+       , A.sw_tippersbull
+       , A.SW_GRUPO
+       , A.ID_PAIS
+  FROM DCRPROP_MENSUAL.DATOS_GRUPO_PERS_TEMP0 A,
+       DCRPROP_MENSUAL.DATOS_GRUPO_PERS_TEMP1 B
+  WHERE A.ID_MES = B.ID_MES
+    AND A.ID_MES = &FECHA_ACTUAL
+    AND A.ID_GRUPO   = B.ID_GRUPO
+    AND A.ID_PERSONA = B.ID_PERSONA;
+
+  vv_count := SQL%ROWCOUNT;
+  COMMIT;
+
+	VN_NUMERR:= 12;
+	  
+	merge /*+ parallel(a 4) parallel(b 4 */ into DCRPROP_MENSUAL.DATOS_GRUPO_PERS a 
+			using DCRPROP_MENSUAL.RELACION_FILIAL_GRUPO_RIESGO  b 
+			on ( b.CIF_NIF = a.ID_PER_PER ) 
+			when matched then 
+				update 
+					set 
+					a.ID_GRUPO=to_number(b.CODIGO_GRUPO),
+					a.NOMBRE_GRUPO=b.NOMBRE_MATRIZ,
+					a.ID_IDEFISC=b.CIF_BIC_MATRIZ;
+
+	COMMIT;
+  
+  VN_NUMERR:= 111;
+
+  VN_NUMERR:= 12;
+  
+  UPDATE DCRPROP_MENSUAL.CONTROL_PROCESO
+    SET ESTADO = 'FINALIZADO',
+       FEC_FIN = SYSDATE,
+       TIEMPO = (current_timestamp - FEC_INI),
+       FINALIZADO = 'OK',
+       REG_INS_OK = vv_count
+  WHERE PROCESO = VV_PROGRAMA||' - DATOS_GRUPO_PERS'
+    AND ESTADO  = 'INICIADO';
+  COMMIT;
+
+--------------------------------------------------------------------------------------------
+-- Analizamos Tablas de Salida
+--------------------------------------------------------------------------------------------
+  VN_NUMERR:= 13;
+  INSERT INTO DCRPROP_MENSUAL.CONTROL_PROCESO (PROCESO, FEC_INI, ESTADO)
+         VALUES (VV_PROGRAMA||' - ANALYZE_TABLES', SYSDATE, 'INICIADO');
+  COMMIT;
+
+  VN_NUMERR:=14;
+
+  --bdd.ORA_ADMIN.ANALIZAR_SEGMENTO('DCRPROP_MENSUAL','DATOS_GRUPO_PERS',NULL,5,'AUTO','SI','VERBOSE','PARTITION');
+  --bdd.ORA_ADMIN.ANALIZAR_SEGMENTO('DCRPROP_MENSUAL','PERS_GRUPO',NULL,5,'AUTO','SI','VERBOSE','PARTITION');
+  --bdd.ORA_ADMIN.ANALIZAR_SEGMENTO('DCRPROP_MENSUAL','DATOS_GRUPO_PERS_TEMP0',NULL,5,'AUTO','SI','VERBOSE','PARTITION');
+  --bdd.ORA_ADMIN.ANALIZAR_SEGMENTO('DCRPROP_MENSUAL','DATOS_GRUPO_PERS_TEMP1',NULL,5,'AUTO','SI','VERBOSE','PARTITION');
+
+  dbms_stats.gather_table_stats('DCRPROP_MENSUAL','DATOS_GRUPO_PERS', cascade=>true, method_opt=>'for all columns size 1', degree => 4, estimate_percent=> 5 );
+  dbms_stats.gather_table_stats('DCRPROP_MENSUAL','PERS_GRUPO', cascade=>true, method_opt=>'for all columns size 1', degree => 4, estimate_percent=> 5 );
+  dbms_stats.gather_table_stats('DCRPROP_MENSUAL','DATOS_GRUPO_PERS_TEMP0', cascade=>true, method_opt=>'for all columns size 1', degree => 4, estimate_percent=> 5 );
+  dbms_stats.gather_table_stats('DCRPROP_MENSUAL','DATOS_GRUPO_PERS_TEMP1', cascade=>true, method_opt=>'for all columns size 1', degree => 4, estimate_percent=> 5 );
+
+  VN_NUMERR:=15;
+  UPDATE DCRPROP_MENSUAL.CONTROL_PROCESO
+    SET ESTADO = 'FINALIZADO',
+       FEC_FIN = SYSDATE,
+       TIEMPO = (current_timestamp - FEC_INI),
+       FINALIZADO = 'OK',
+       REG_INS_OK = 0
+  WHERE PROCESO = VV_PROGRAMA||' - ANALYZE_TABLES'
+    AND ESTADO  = 'INICIADO';
+  COMMIT;
+--------------------------------------------------------------------------------------------
+
+EXCEPTION
+     WHEN OTHERS THEN
+         VV_MENSAJE:= SUBSTR(TO_CHAR(SQLCODE)||SQLERRM,1,255);
+         INSERT INTO DCRPROP_MENSUAL.CONTROL_PROCESO (PROCESO, FEC_INI, ESTADO, FINALIZADO, ERROR_PROG, NUM_ERROR, ERROR_ORAC)
+         VALUES ('BKU00005-UMEs ABORT', SYSDATE, 'ABORTADO', 'KO', VV_PROGRAMA, VN_NUMERR, VV_MENSAJE);
+         COMMIT;
+
+       	 RAISE_APPLICATION_ERROR(-20000, 'VN_NUMERR:' || vn_numerr);
+END;
+
+/
+
+EXIT;
+
+--------------------
+-- Test Script 03 --
+--------------------
+BEGIN
+ CURSOR C1 IS SELECT * FROM TABLE;
+ BEGIN 
+ EXECUTE IMMEDIATE C1;
+ END;
+END;
+/
+
+--============================================== PLSQL CONCEPTS ==================================================================
+-- SELECT Statement
+SELECT [DISNCT] {*, column [alias],...} FROM table [WHERE condition(s)] [ORDER BY {column, exp, alias} [ASC|DESC]]
+
+-- Cartesian Product
+SELECT table1.*, table2.*,[...] FROM table1,table2[,...]
+
+-- Equijoin(Simple joins or inner join)
+SELECT table1.*,table2.* FROM table1,table2 WHERE table1.column = table2.column
+
+-- Non-Equijoins
+SELECT table1.*, table2.* FROM table1, table2 WHERE table1.column BETWEEN table2.column1 AND table2.column2
+
+-- Outer joins
+SELECT table1.*,table2.* FROM table1,table2 WHERE table1.column(+) = table2.column
+SELECT table1.*,table2.* FROM table1,table2 WHERE table1.column = table2.column(+)
+
+-- Self joins
+SELECT alias1.*,alias2.* FROM table1 alias1,table1 alias2 WHERE alias1.column = alias2.column
+
+-- Aggregation Selecting
+SELECT [column,] group_function(column) FROM table [WHERE condition] [GROUP BY group_by_expression] [HAVING group_condition] [ORDER BY column] ;
+
+-- Group function
+AVG([DISTINCT|ALL]n)
+COUNT(*|[DISTINCT|ALL]expr)
+MAX([DISTINCT|ALL]expr)
+MIN([DISTINCT|ALL]expr)
+STDDEV([DISTINCT|ALL]n)
+SUM([DISTINCT|ALL]n)
+VARIANCE([DISTINCT|ALL]n)
+
+-- Subquery
+SELECT select_list FROM table WHERE expr operator(SELECT select_list FROM table);
+
+-- single-row comparison operators
+= > >= < <= <>
+
+-- multiple-row comparison operators
+IN ANY ALL
+
+-- Multiple-column Subqueries
+SELECT column, column, ... FROM table WHERE (column, column, ...) IN (SELECT column, column, ... FROM table WHERE condition) ;
+
+--Manipulating Data
+-- INSERT Statement(one row)
+INSERT INTO table [ (column [,column...])] VALUES (value [,value...]) ;
+
+-- INSERT Statement with Subquery
+INSERT INTO table [ column(, column) ]
+subquery ;
+
+--UPDATE Statement
+UPDATE table SET column = value [, column = value,...] [WHERE condition] ;
+
+--Updating with Multiple-column Subquery
+UPDATE table SET (column, column,...) = (SELECT column, column,... FROM table WHERE condition) WHERE condition ;
+
+--Deleting Rows with DELETE Statement
+DELETE [FROM] table[WHERE conditon] ;
+
+--Deleting Rows Based on Another Table
+DELETE FROM table WHERE column = (SELECT column FROM table WHERE condtion) ;
+
+-- Transaction Control Statements
+COMMIT ;
+SAVEPOINT name ;
+ROLLBACK [TO SAVEPOINT name] ;
+
+-- CREATE TABLE Statement
+CREATE TABLE [schema.]table (column datatype [DEFAULT expr] [,...]) ;
+
+-- CREATE TABLE Statement with Subquery
+CREATE TABLE [schema.]table [(column, column...)] AS subquery
+
+-- Datatype
+VARCHAR2(size), CHAR(size), NUMBER(p,s), DATE, LONG, CLOB, RAW, LONG, RAW, BLOB, BFILE
+
+-- ALTER TABLE Statement (Add columns)
+ALTER TABLE table ADD (column datatype [DEFAULT expr] [, column datatype]...) ;
+
+-- Changing a column’s type, size and default of a Table
+ALTER TABLE table MODIFY (column datatype [DEFAULT expr] [, column datatype]...) ;
+
+-- Dropping a Table
+DROP TABLE table ;
+
+-- Changing the Name of an Object
+RENAME old_name TO new_name ;
+
+-- Trancating a Table
+TRUNCATE TABLE table ;
+
+-- Adding Comments to a Table
+COMMENT ON TABLE table | COLUMN table.column IS ‘text’ ;
+
+-- Dropping a comment from a table
+COMMENT ON TABLE table | COLUMN table.column IS ‘’ ;
+
+-- Data Dictionary
+ALL_OBJECTS USER_OBJECTS
+ALL_TABLES USER_TABLES
+ALL_CATALOG USER_CATALOG or CAT
+ALL_COL_COMMENTS USER_COL_COMMENTS
+ALL_TAB_COMMENTS USER_TAB_COMMENTS
+
+-- Defining Constraints
+CREATE TABLE [schema.]table (column datatype [DEFAULT expr][NOT NULL] [column_constraint],... [table_constraint][,...]) ;
+
+-- Column constraint level
+column [CONSTRAINT constraint_name] constraint_type,
+
+-- Constraint_type
+PRIMARY KEY REFERENCES table(column) UNIQUE CHECK (codition)
+
+-- Table constraint level(except NOT NULL)
+column,...,[CONSTRAINT constraint_name] constraint_type (column,...),
+
+-- NOT NULL Constraint (Only Column Level)
+CONSTRAINT table[_column...]_nn NOT NULL ...
+
+-- UNIQUE Key Constraint
+CONSTRAINT table[_column..]_uk UNIQUE (column[,...])
+
+-- PRIMARY Key Constraint
+CONSTRAINT table[_column..]_pk PRIMARY (column[,...])
+
+-- FOREIGN Key Constraint
+CONSTRAINT table[_column..]_fk
+FOREIGN KEY (column[,...])
+REFERENCES table (column[,...])[ON DELETE CASCADE]
+
+-- CHECK constraint
+CONSTRAINT table[_column..]_ck CHECK (condition)
+
+-- Adding a Constraint(except NOT NULL)
+ALTER TABLE table ADD [CONSTRAINT constraint_name ] type (column) ;
+
+-- Adding a NOT NULL constraint
+ALTER TABLE table MODIFY (column datatype [DEFAULT expr][CONSTRAINT constraint_name_nn] NOT NULL) ;
+
+-- Dropping a Constraint
+ALTER TABLE table DROP CONSTRAINT constraint_name ;
+ALTER TABLE table DROP PRIMARY KEY | UNIQUE (column) | CONSTRAINT constraint_name [CASCADE] ;
+
+-- Disabling Constraints
+ALTER TABLE table DISABLE CONSTRAINT constraint_name [CASCADE] ;
+
+-- Enabing Constraints
+ALTER TABLE table ENABLE CONSTRAINT constraint_name ;
+
+-- Data Dictionary
+ALL_CONSTRAINTS   USER_CONSTRAINTS
+ALL_CONS_COLUMNS  USER_CONS_COLUMNS
+
+-- Creating a View
+CREATE [OR REPLACE] [FORCE|NOFORCE] VIEW view [(alias[, alias]...)] AS subquery
+[WITH CHECK OPTION [CONSTRAINT constraint_name]]
+[WITH READ ONLY] ;
+
+-- Removing a View
+DROP VIEW view ;
+
+-- CREATE SEQUENCE Statement
+CREATE SEQUENCE sequence
+[INCREMENT BY n]
+[START WITH n]
+[{MAXVALUE n| NOMAXVALUE}]
+[{MINVALUE n| NOMINVALUE}]
+[{CYCLE | NOCYCLE}]
+[{CACHE [n|20]| NOCACHE}] ;
+
+-- Pseudocolumns
+sequence.NEXTVAL sequence.CURRVAL
+
+-- Modifying a Sequence (No START WITH option)
+ALTER SEQUENCE sequence
+[INCREMENT BY n]
+[{MAXVALUE n| NOMAXVALUE}]
+[{MINVALUE n| NOMINVALUE}]
+[{CYCLE | NOCYCLE}]
+[{CACHE [n|20]| NOCACHE}] ;
+
+-- Removing a Sequence
+DROP SEQUENCE sequence ;
+
+-- Creating an Index
+CREATE INDEX index ON TABLE (column[,column]...) ;
+
+-- Removing an Index
+DROP INDEX index ;
+
+-- Synoyms
+CREATE [PUBLIC] SYNONYM synonym FOR object ;
+
+-- Removing Synonyms
+DROP SYNONYM synonym ;
+
+-- Data Dictionary
+ALL_VIEWS USER_VIEWS
+ALL_SEQUENCES USER_SEQUENCES
+ALL_INDEXES USER_INDEXES
+ALL_IND_COLUMNS USER_IND_COLUMNS
+
+-- System Privileges(DBA) User System Privileges
+CREATE USER CREATE SESION
+DROP USER CREATE TABLE
+DROP ANY TABLE CREATE SEQUENCE
+BACKUP ANY TABLE CREATE VIEW
+CREATE PROCEDURE
+
+-- Creating Users
+CREATE USER user IDENTIFIED BY password ;
+
+-- Creating Roles
+CREATE ROLE role ;
+
+-- Granting System Privileges
+GRANT privelges[,...] TO user[,...] ;
+GRANT privelges TO role ;
+GRANT role TO user[,...] ;
+
+-- Changing Password
+ALTER USER user IDENTIFIED BY password ;
+
+-- Dropping Users
+DROP USER user [CASCADE] ;
+
+-- Dropping Roles
+DROP ROLE role ;
+
+-- Object Privileges
+Object       Table View Sequence Procedure
+ALTER         X           X
+DELETE        X     X
+EXECUTE                             X
+INDEX         X
+INSERT        X     X
+REFERENCES    X
+SELECT        X     X     X
+UPDATE        X     X
+
+-- Object Privileges
+GRAND object_priv [(column)] ON object TO {user|role|PUBLIC} [WITH GRANT OPTION] ;
+
+-- Revoking Object Privileges
+REVOKE {privilege [,privilege...] | ALL} ON object FROM {user[,user...]|role|PUBLIC} [CASCADE CONSTRAINTS] ;
+
+-- Data Dictionary
+ROLE_SYS_PRIVS
+ROLE_TAB_PRIVS         USER_ROLE_PRIVS
+USER_TAB_PRIVS_MADE    USER_TAB_PRIVS_RECD
+USER_COL_PRIVS_MADE    USER_COL_PRIVS_RECD
+
+-- PL/SQL Block Structure
+DECLARE --Optional
+--Variables, Cursors, User-defined exceptions
+BEGIN --Mandatory
+--SQL statements
+--PL/SQL statements
+EXCEPTION --Optional
+--Actions to perform when errors occur
+END ; --Mandatory
+
+-- PL/SQL Block Type
+-- Anonymous Procedure Function
+[DECLARE] PROCEDURE name FUNCTION name
+IS RETURN datatype IS
+[DECLARE] [DECLARE]
+BEGIN BEGIN BEGIN
+
+--statements --statements --statements
+[EXCEPTION] [EXCEPTION] [EXCEPTION]
+END ; END ; END ;
+Declaring PL/SQL Variables
+identifier [CONSTANT] datatype [NOT NULL]
+[:=|DEFAULT expr] ;
+Assigning Values to Variables
+identifier := expr ;
+
+-- Base Scalar Datatypes
+VARCHAR2(n) NUMBER(p,s) DATE CHAR(n)
+LONG LONG RAW BOOLEAN
+BINARY_INTEGER PLS_INTEGER
+The %TYPE Attribute
+table_name.column_name%TYPE ;
+variable_name%TYPE ;
+
+-- Composite Datatypes
+TABLE RECORD NESTED TABLE VARRAY LOB
+
+-- Datatypes
+CLOB BLOB BFILE NCLOB
+
+-- Creating Bind Variables
+VARIABLE variable_name dataypez
+
+-- Displaying Bind Variables
+PRINT [variable_name]
+
+-- Commenting Code
+--prefix single-line comments with two dashes
+/* Place muti-line comment between the symbols */
+-- SELECT Statements in PL/SQL
+SELECT {column_list|*} INTO {variable_name[,variable_name]...|record_name} FROM table WHERE condition
+
+-- Implicit Cursor Attributes for DML statements
+SQL%ROWCOUNT || FOUND || NOTFOUND || ISOPEN
+
+-- Control Structures
+-- IF Statement                         Basic Loop
+IF condition THEN 						LOOP
+statements ; 							statements;
+[ELSIF condition THEN 					...
+statements ;] 							EXIT [WHEN condition];
+[ELSE 									END LOOP
+statements;]
+END IF ;
+
+-- FOR Loop ,                           WHILE Loop
+FOR conter in [REVERSE]                 WHILE condition LOOP
+lower..upper LOOP                       statement1;
+statement1;                             statement2;
+statement2;                             ...
+...                                     END LOOP ;
+END LOOP;
+
+-- Creating a PL/SQL Record
+TYPE record_name_type IS RECORD(field_declaration[,field_declaration]...) ;
+record_name record_name_type ;
+
+-- Where field_declaration is
+field_name {field_type|variable%TYPE|table.column%TYPE|table%ROWTYPE} [[NOT NULL] {:=|DEFAULT} expr]
+
+-- Referencing Fields in the Record 
+record_name.field_name
+
+-- Declaring Records with the %ROWTYPE Attribute
+DECLARE
+record_name reference%ROWTYPE
+
+-- Creating a PL/SQL Table
+TYPE type_name IS TABLE OF
+{column_scalr_type|variable%TYPE|table.column%TYPE
+|variable%ROWTYPE} [NOT NULL]
+[INDEX BY BINARY_INTEGER];
+identifier type_name ;
+
+-- Referencing a PL/SQL table
+pl_sql_table_name(primary_key_value)
+
+-- Using PL/SQL Table Method
+table_name.method_name[(parameters)]
+
+-- PL/SQL Table Methods
+EXITS(n) COUNT FIRST LAST PRIOR(n)
+NEXT(n) EXTEND(n,i) TRIM DELETE
+
+-- PL/SQL Table of Records
+TYPE table_name_type IS TABLE OF table_name%ROWTYPE
+INDEX BY BINARY_INTEGER ;
+table_name table_name_type ;
+
+-- Referencing a Table of Records
+table_name(index).field
+
+-- Declaring the Cursor in Declaration Section
+CURSOR cursor_name IS select_statement ;
+record_name cursor_name%ROWTYPE ;
+
+-- Opening and Closing the Cursor
+OPEN cursor_name ;
+CLOSE cursor_name ;
+
+-- Fetching Data from the Cursor
+FETCH cursor_name INTO [variable1(,variable2,...) |record_name] ;
+
+-- Explicit Cusor Attributes
+cursor_name%ISOPEN || NOTFOUND || FOUND || ROWCOUNT
+
+-- Cursor FOR Loops
+FOR record_name IN cursor_name LOOP
+statement1;
+statement2;
+...
+END LOOP;
+
+-- Cursor FOR Loops Using Subqueries
+FOR record_name IN (subqueries) LOOP
+statement1
+...
+END LOOP ;
+
+-- Cursors with Parameters
+CURSOR cursor_name [(cursor_parameter_name datatype
+[,...])]
+IS select_statement
+[FOR UPDATE [OF column_reference][NOWAIT]];
+
+-- Parameter Name
+cursor_parameter_name [IN] datatype [{:=|DEFAULT}expr]
+
+-- Openning with Parameters
+OPEN cursor_name(cursor_parameter_name[,...]);
+
+-- Cursor FOR Loops with parameters
+FOR record_name IN cursor_name(cursor_parameter_name
+[,...]) LOOP
+statement1;
+statement2;
+...
+END LOOP;
+
+-- WHERE CURRENT OF clause
+UPDATE|DELETE ... WHERE CURRENT OF cursor_name ;
+
+-- Predefined Exceptions
+NO_DATA_FOUND || TOO_MANY_ROWS || INVALID_CURSOR || ZERO_DIVIDE || DUP_VAL_ON_INDEX
+
+-- Trapping Exceptions
+EXCEPTION
+WHEN exception1 [OR exception2 ...] THEN
+statement1 ;
+statement2 ;
+...
+[WHEN exception3 [OR exception4 ...] THEN
+statement1 ;
+statement2 ;
+...]
+[WHEN OTHERS THEN
+statement1 ;
+statement2 ;
+...]
+
+-- Declaring Non-Predefined Oracle Sever Exception
+DECLARE
+exception EXCEPTION ;
+PRAGMA EXCEPTION_INIT(exception, error_number) ;
+
+-- Referencing the declared Non-predefined execption
+BEGIN
+...
+EXCEPTION
+WHEN exception THEN
+statement1 ;
+...
+END ;
+
+-- Trapping User-Defined Exceptions
+DECLARE
+exception EXCEPTION ;
+BEGIN
+...
+IF SQL%NOTFOUND THEN
+RAISE exception ;
+END IF ;
+...
+EXCEPTION
+WHEN exception THEN
+statement1 ;
+...
+END ;
+
+-- Functions for Trapping Exceptions
+SQLCODE return error code
+SQLERRM return error message
+
+-- RAISE_APPLICATION_ERROR procedure(Executable/Exception Section)
+RAISE_APPLICATION_ERROR ( error_number,message [, {TRUE|FALSE}]) ;
+error_number between -20000 to -20999
+message string up to 2,048 bytes long
+TRUE placed on the stack of previous errors.
+FALSE replaces all previous errors
+
+-- Single-Row Functions , Character Functions
+LOWER(column|expression)
+UPPER(column|expression)
+INITCAP(column|expression)
+INSTR(column|expression,m)
+CONCAT(column1|expression1,column2|expression2}
+SUBSTR(column|expression,m,[n])
+LENGTH(column|expression)
+LPAD(column|expression,n,’string’)
+
+-- Number Functions
+MOD(m,n)
+ROUND(column|expression,n)
+TRUNC(column|expression,n)
+
+-- Date Functions
+MONTHS_BETWEEN(date1,date2)
+ADD_MONTHS(date,n)
+NEXT_DAY(date,’char’)
+LAST_DAY(date)
+ROUND(date[,’fmt’])
+TRUNC(date[,’fmt’])
+
+-- Conversion Functions
+TO_CHAR(number|date[,’fmt’]) 
+TO_NUMBER(char[,’fmt’])
+TO_DATE(char[,’fmt’])
+NVL(expr1,expr2)
+DECODE(col/expr,search1,result1[,search2,result2,...,][,default])
+
+-- Operators
+Comparison 		= > >= < <= <>
+BETWEEN..		AND, IN, LIKE, IS NULL
+Logical 		AND OR NOT
+
+-- Order of Operations
+Operator      	       Operation
+**,NOT        	       Exponentiation, logical negation
++,-          	       Identity, negation
+*,/ 			       Muliplication, division
++,-,|| 			       Addition, subtraction, concatenation =,!
+=,<,>,<= 		       Comparison
+>=,IS NULL,LIKE        
+BETEEN,IN              
+AND 			       Conjunction
+OR 				       Inclusion
+
