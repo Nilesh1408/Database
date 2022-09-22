@@ -7,6 +7,11 @@
 column c_id          format 99999
 column customer_name format a15
 
+-- Update blank or White space character with '?'
+SELECT ID_FCH_FIN , DECODE(ID_FCH_FIN,'','?',',' )  FROM PERSON;
+SELECT ID_FCH_FIN, REGEXP_REPLACE (ID_FCH_FIN, '^(\s*)', '?') FROM PERSON;
+Update PERSON dest set dest.ID_FCH_FIN = (SELECT REGEXP_REPLACE(src.ID_FCH_FIN, '^(\s*)', '?') FROM PERSON src where src.ID_FCH_FIN = dest.ID_FCH_FIN);
+
 --  Create the duplicate table with data
 Create table emp1 as Select * from employees;
 
