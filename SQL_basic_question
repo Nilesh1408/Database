@@ -11,6 +11,7 @@ column customer_name format a15
 SELECT ID_FCH_FIN , DECODE(ID_FCH_FIN,'','?',',' )  FROM PERSON;
 SELECT ID_FCH_FIN, REGEXP_REPLACE (ID_FCH_FIN, '^(\s*)', '?') FROM PERSON;
 Update PERSON dest set dest.ID_FCH_FIN = (SELECT REGEXP_REPLACE(src.ID_FCH_FIN, '^(\s*)', '?') FROM PERSON src where src.ID_FCH_FIN = dest.ID_FCH_FIN);
+Update PERSON A set A.ID_FCH_FIN = '?' where substr(ID_FCH_FIN, 1,2) not in ('20', '19');
 
 --  Create the duplicate table with data
 Create table emp1 as Select * from employees;
