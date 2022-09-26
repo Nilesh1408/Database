@@ -1,5 +1,30 @@
 #----------------------------------------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------#
+Create table credit_card_loan_details(phone number, credit_card_number number, loan_eligibility char(1), loan_amount number);
+insert into credit_card_loan_details values (9185966520,1234123412346666,'N',100000) ;
+insert into credit_card_loan_details values (9185966520,1234123412347777,'Y',100000) ;
+COMMIT;
+
+Create or Replace Procedure Loan_Eligibility_Proc(P_Phone in NUMBER, P_CC_Last_4 in NUMBER , P_Msg out VARCHAR2)--io parameter
+is L_loan_Amt NUMBER;L_count NUMBER;L_Loan_Eligibility Char(1); NO_RECORD_EXCEPTION EXCEPTION ;--local Variable
+Begin
+     SELECT COUNT(*) INTO L_count FROM CREDIT_CARD_LOAN_DETAILS WHERE PHONE=P_Phone AND SUBSTR(CREDIT_CARD_NUMBER,-4)=P_CC_Last_4;
+     IF L_count=0 THEN RAISE NO_RECORD_EXCEPTION; END IF;
+     SELECT LOAN_AMOUNT INTO L_loan_Amt FROM CREDIT_CARD_LOAN_DETAILS WHERE PHONE=P_Phone AND SUBSTR(CREDIT_CARD_NUMBER,-4)=P_CC_Last_4 and LOAN_ELIGIBILITY = 'Y' ;
+     P_Msg:='Approved loan amount is :'||TO_CHAR(L_loan_Amt,'9,99,999');
+EXCEPTION
+    WHEN NO_RECORD_EXCEPTION THEN P_Msg:='Entered Details are Incorrect. Please check';
+    WHEN NO_DATA_FOUND THEN P_Msg:='Sorry, No offer Available , Please try after sometime';
+END Loan_Eligibility_Proc;
+
+-- Execute Procedure
+DECLARE Result VARCHAR2(100);
+BEGIN Loan_Eligibility_Proc(P_Phone => 9185966520, P_CC_Last_4 => 7777 , P_Msg => Result);
+DBMS_OUTPUT.PUT_LINE(Result);
+END;
+
+#----------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
 create or replace PROCEDURE AADHAAR_UPDATION 
 (
   P_AADHAAR_NUMBER IN NUMBER 
