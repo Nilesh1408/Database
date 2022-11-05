@@ -1,5 +1,3 @@
-
-
 create table customer
 (
 cust_id number(6),
@@ -33,11 +31,6 @@ commit;
 
 update customer 
 set mobile_no =7878787878;
-
-
-
-
-
 
 rollback;
 
@@ -84,27 +77,16 @@ alter table customer
 modify MOBILE_NO varchar2(15);
 --ORA-01439: column to be modified must be empty to change datatype 
 
-
 1. bkp a table
-
 2. truncate base table
-
 3. modify data type
-
 4. Restore the data
-
 5. drop bkp table
 
-
-
 create table customer_bkp as select * from customer;
-
 select * from CUSTOMER_BKP;
-
 truncate table customer;
-
 select * from customer;
-
 rollback;
 
 alter table customer
@@ -156,12 +138,6 @@ rollback to c;
 select * from test;
 
 rollback;
-
-
-
-
-
-
 
 desc CUSTOMER_DETAILS;
 
@@ -1316,8 +1292,6 @@ Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1007,'S
 
 
 commit;
-
-
 create table country
 (
 Country_id	number(3),
@@ -1353,8 +1327,6 @@ where c.country_id=r.country_id;
 Inner Join:
 ------------
   -- ANSI Method
-
-
 select
 c.cust_id,
 c.cust_name,
@@ -1370,8 +1342,6 @@ on c.country_id=r.country_id;
 Left Outer Join:
 ------------
   -- implicit
-
-
 select
 c.cust_id,
 c.cust_name,
@@ -1382,12 +1352,9 @@ r.country_name
 from customer c, region r
 where c.country_id=r.country_id(+);
 
-
 Left Outer Join:
 ------------
   -- ANSI
-
-
 select
 c.cust_id,
 c.cust_name,
@@ -1397,16 +1364,10 @@ c.country_id,
 r.country_name
 from customer c Left Outer join region r
 on c.country_id=r.country_id;
-
-
 ***************************************************************
-
-
 Right Outer Join:
 ------------
   -- implicit
-
-
 select
 c.cust_id,
 c.cust_name,
@@ -1416,13 +1377,9 @@ c.country_id,
 r.country_name
 from customer c, region r
 where c.country_id(+)=r.country_id;
-
-
 Right Outer Join:
 ------------
   -- ANSI
-
-
 select
 c.cust_id,
 c.cust_name,
@@ -1434,12 +1391,9 @@ from customer c Right Outer join region r
 on c.country_id=r.country_id;
 
 *****************************************************
-
 Full Outer Join:
 ------------
   -- ANSI
-
-
 select
 c.cust_id,
 c.cust_name,
@@ -1449,12 +1403,9 @@ c.country_id,
 r.country_name
 from customer c Full Outer join region r
 on c.country_id=r.country_id;
-
-
 *********************************************************
 
 3 tables  -- customer   city    country
-
 
 select
 c1.cust_id,
@@ -1468,9 +1419,6 @@ c3.country_name
 from customer c1,city c2, country c3
 where c1.city_id=c2.city_id 
 and c2.region_id=c3.country_id;
-
-
-
 
 select
 c1.cust_id,
@@ -1487,11 +1435,8 @@ inner join country c3
 on c2.region_id=c3.country_id;
 
 *************************************************************
-
 select * from employees;
-
 select * from departments;
-
 select
 e.employee_id,
 e.first_name,
@@ -1502,7 +1447,6 @@ d.DEPARTMENT_NAME,
 d.LOCATION_ID
 from Employees e,departments d
 where e.department_id=d.department_id;
-
 
 select
 e.employee_id,
@@ -1515,7 +1459,6 @@ d.LOCATION_ID
 from employees e inner join DEPARTMENTS d
 on e.department_id=d.department_id;
 
-
 -- Left Outer Join
 
 select
@@ -1527,7 +1470,6 @@ e.department_id,
 d.DEPARTMENT_NAME
 from employees e, departments d
 where e.department_id=d.department_id(+);
-
 
 select
 e.employee_id,
@@ -1553,7 +1495,6 @@ d.DEPARTMENT_NAME
 from employees e, departments d
 where e.department_id(+)=d.department_id;
 
-
 select
 e.employee_id,
 e.first_name,
@@ -1577,7 +1518,6 @@ from employees e full join departments d
 on e.department_id=d.department_id;
 
 ********************************************************************************
-
 select the departmet_id where no employees are working
 
 select
@@ -1587,11 +1527,9 @@ from employees e, departments d
 where e.department_id(+)=d.department_id and e.employee_id is null;
 
 ================================================================================
-
 3 tables join
 
 select * from locations;
-
 select
 e.employee_id,
 e.first_name,
@@ -1603,7 +1541,6 @@ d.location_id,
 l.country_id
 from employees e, departments d, locations l
 where e.department_id=d.department_id and d.location_id=l.location_id and l.country_id='UK';
-
 
 select
 e.employee_id,
@@ -1618,8 +1555,6 @@ from employees e inner join departments d
 on e.department_id=d.department_id 
 inner join locations l 
 on  d.location_id=l.location_id and l.country_id='CA' and e.salary >10000;
-
-
 
 select
 e.employee_id,
@@ -1658,11 +1593,8 @@ on d.location_id=l.location_id
 join countries c
 on l.country_id=c.country_id where c.country_name='United Kingdom' and e.salary >10000;
 
-
 --------------------------------------------------------------------------------
-
 --Cross Join or Cartesian product
-
 select * from departments;
 select
 e.employee_id,
@@ -1674,16 +1606,11 @@ d.DEPARTMENT_NAME,
 d.LOCATION_ID
 from employees e, departments d
 --where e.department_id=d.department_id;
-
 107*27=2889
-
 --------------------------------------------------------------------------------
 self Join
 
-
 select * from employees;
-
-
 select
 e1.employee_id,
 e1.first_name,
@@ -1694,9 +1621,7 @@ from employees e1,employees e2
 where e1.manager_id=e2.employee_id order by e1.employee_id;
 
 --------------------------------------------------------------------
-
 --Non-Equi Join
-
 select
 e.employee_id,
 e.first_name,
@@ -1708,41 +1633,29 @@ d.LOCATION_ID
 from employees e, departments d
 where e.department_id!=d.department_id;
 
-
 Aggregate Functions:
 =================
-
 select max(salary) from employees;
 select min(salary) from employees;
 select sum(salary) from employees;
 select count(salary) from employees;
 select avg(salary) from employees;
-
-
 --------------------------------------------------
 -- We can't select non-aggregate column with aggregate column. 
 
 select first_name,max(salary) from employees;
 ORA-00937: not a single-group group function
 
-
 select first_name,max(salary) from employees group by first_name;
 -- wrong
 
 select department_id,max(salary) from employees group by department_id;
-
 whenever we want to use wise keyword, use group by.  
-
 Filter condition on resultant of group by clause - We have to use having clause. 
-
 Having clause is always come with group by   group by  + having 
 
-
 select department_id,sum(salary) from employees group by department_id;
-
-
 select department_id,sum(salary) from  employees group by department_id having sum(salary) >50000;
-
 select first_name,max(salary) from employees;
 --ORA-00937: not a single-group group function
 
@@ -1753,7 +1666,6 @@ select department_id,sum(salary) from employees where department_id is not null
 group by department_id having sum(salary) >50000 order by 1;
 
 The order of keywords in any oracle SQL statement. 
-
 1.from
 2.where
 3.group by
@@ -1767,82 +1679,58 @@ group by e.department_id,d.department_name
 having sum(salary) >50000 order by 1;
 
 --select the department where more than 30 employees are working;
-
 select e.department_id,d.department_name,count(*) 
 from employees e inner join departments d
 on e.department_id=d.department_id 
 group by e.department_id, d.department_name having count(*) > 30;
 
 --Analtical Functions:
-
-
 Rank()
 Dense_rank()
 Lead()
 Lag()
 
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 rank() over(order by salary) RANK from employees;
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 rank() over(order by salary desc) RANK from employees;
 
 --dense rank()
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 dense_rank() over(order by salary) RANK from employees;
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 dense_rank() over(order by salary desc) RANK from employees;
-
 --------------------------------------------------------------------------------
-
 group by == > Partition by
-
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 rank() over(partition by department_id order by salary) RANK from employees;
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 rank() over(partition by department_id order by salary desc) RANK from employees;
-
 ---------------------------------------------------------------------------------
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 dense_rank() over(partition by department_id order by salary) RANK from employees;
-
 select employee_id,first_name,email,phone_number,salary,department_id,
 dense_rank() over(partition by department_id order by salary desc) RANK from employees;
-
 -----------------------------------------------------------------------------------
 --Least 5 salaried employees
 select employee_id,first_name,email,phone_number,salary,department_id,rank from
 (select employee_id,first_name,email,phone_number,salary,department_id,
 rank() over(order by salary) RANK from employees) where rank <=5;
-
 -- Top 5 earners
 select employee_id,first_name,email,phone_number,salary,department_id,rank from
 (select employee_id,first_name,email,phone_number,salary,department_id,
 rank() over(order by salary desc) RANK from employees)  where rank <=5;
-
-
 --------------------------------------------------------------------------------
-
 --Least 5 salaried employees
 select employee_id,first_name,email,phone_number,salary,department_id,rank from
 (select employee_id,first_name,email,phone_number,salary,department_id,
 dense_rank() over(order by salary) RANK from employees) where rank <=5;
-
 -- Top 5 earners
 select employee_id,first_name,email,phone_number,salary,department_id,rank from
 (select employee_id,first_name,email,phone_number,salary,department_id,
 dense_rank() over(order by salary desc) RANK from employees)  where rank <=5;
-
 --------------------------------------------------------------------------------
-
 -- Top 5 earners with department_name
-
 select a.employee_id,
 a.first_name,
 a.email,
@@ -1854,30 +1742,18 @@ a.rank from
 (select employee_id,first_name,email,phone_number,salary,department_id,
 rank() over(order by salary desc) "RANK" from employees) a inner join departments d
 on a.department_id=d.department_id where a.rank <=5 order by a.rank;
-
 --------------------------------------------------------------------------------
-
 100
-
 middle record
-
-
 select * from employees where rownum <=5;
 
 107
-
 select sount(rownum)=count(rownum)/2; 
-
-
 select rownum,e.* from employees e where rownum <=(select round(count(*)/2) from employees)
 minus
 select rownum,e.*  from employees e where rownum <(select round(count(*)/2) from employees);
-
-
 select * from employees;
-
 --------------------------------------------------------------------------------
-
 Lead()
 Lag()
 
@@ -1885,18 +1761,14 @@ select employee_id,first_name,email,phone_number,hire_date,salary,department_id,
 lead (hire_date) over(order by hire_date) after_hire,
 lead (first_name) over(order by hire_date) after_hire from employees;
 
-
 select * from (
 select employee_id,first_name,email,phone_number,hire_date,salary,department_id,
 lag (hire_date) over(order by hire_date) before_hire_date,
 lag (first_name) over(order by hire_date) before_hire_name from employees) where employee_id=142;
-
 --------------------------------------------------------------------------------------------
-
 select employee_id,first_name,email,phone_number,hire_date,salary,department_id,
 lead (FIRST_NAME) over(order by salary) high_salary_person,
 lead (salary) over(order by salary) high_salary from employees;
-
 ---------------------------------------------------------------------------------------------
 
 
