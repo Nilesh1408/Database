@@ -1,1 +1,1913 @@
 
+
+create table customer
+(
+cust_id number(6),
+cust_name	varchar2(50),
+mobile_no	 number(10),
+dob	date,
+city	varchar2(30),
+email_id varchar2(30)
+);
+
+select * from customer;
+
+insert into customer
+(cust_id,cust_name,mobile_no,dob,city,email_id)
+values(100000,'Arun',	9090909090,to_date('08/04/2000','mm/dd/yyyy'),	'Chennai','arun@gmail.com');
+
+insert into customer
+values(100001,'John',	9090909030,to_date('12/24/1986','mm/dd/yyyy'),	'Bangaluru','john@gmail.com');
+
+insert into customer
+values(100002,'Geon',to_date('12/24/1985','mm/dd/yyyy'),	'Delhi','Geon@gmail.com');
+-- SQL Error: ORA-00947: not enough values
+
+insert into customer
+(cust_id,cust_name,dob,city,email_id)
+values(100002,'Geon',to_date('12/24/1985','mm/dd/yyyy'),	'Delhi','Geon@gmail.com');
+
+rollback;
+
+commit;
+
+update customer 
+set mobile_no =7878787878;
+
+
+
+
+
+
+rollback;
+
+update customer 
+set mobile_no =7878787878 where cust_id=100002;
+
+commit;
+
+-- add a column 
+
+alter table customer
+add country VARCHAR2(50);
+
+select * from customer;
+
+-- drop a column
+
+alter table customer
+drop column city;
+
+update customer set country='India';
+
+commit;
+
+desc customer;
+
+insert into customer
+(cust_id,cust_name,mobile_no,dob,email_id,country)
+values(1000000,'Dilip',9090909090,to_date('08/04/2000','mm/dd/yyyy'),'arun@gmail.com','india');
+--ORA-01438: value larger than specified precision allowed for this column
+
+CUST_ID         NUMBER(6)      number(8)
+
+MOBILE_NO       NUMBER(10)   varchar2(15)
+
+alter table customer
+modify cust_id number(8);
+
+alter table customer
+modify cust_id number(6);
+-- ORA-01440: column to be modified must be empty to decrease precision or scale
+
+alter table customer
+modify MOBILE_NO varchar2(15);
+--ORA-01439: column to be modified must be empty to change datatype 
+
+
+1. bkp a table
+
+2. truncate base table
+
+3. modify data type
+
+4. Restore the data
+
+5. drop bkp table
+
+
+
+create table customer_bkp as select * from customer;
+
+select * from CUSTOMER_BKP;
+
+truncate table customer;
+
+select * from customer;
+
+rollback;
+
+alter table customer
+modify MOBILE_NO varchar2(15);
+
+desc customer;
+
+insert into customer (select * from customer_bkp);
+
+commit;
+
+select * from customer_bkp;
+
+delete from customer_bkp;
+
+rollback;
+
+delete from customer_bkp where cust_id=100001;
+
+commit;
+
+drop table customer_bkp;
+
+
+desc customer;
+
+dob date_of_birth
+
+alter table customer
+rename column dob to date_of_birth;
+
+rename customer to customer_data;
+
+desc customer_data;
+
+
+create table test (no1 number(3), no2 number(3));
+
+insert into test values (1,2);
+savepoint a;
+insert into test values (3,4);
+savepoint b;
+insert into test values (5,6);
+savepoint c;
+insert into test values (7,8);
+
+rollback to c;
+
+select * from test;
+
+rollback;
+
+
+
+
+
+
+
+desc CUSTOMER_DETAILS;
+
+select * from CUSTOMER_DETAILS;
+
+999999   99999999
+
+
+Modify a column
+
+alter table customer_details
+modify cust_id number(8);
+
+
+alter table customer_details
+modify mobile_no varchar2(15);
+-- ORA-01439: column to be modified must be empty to change datatype
+
+bkp
+truncate
+modify
+restore
+
+
+create table customer_details_bkp as select * from customer_details;
+
+
+select * from CUSTOMER_DETAILS_BKP;
+
+create table customer_details_bkp1 as select * from customer_details where 1=2;
+
+
+-- Truncate a table
+
+truncate table customer_details;
+
+-- Modify
+
+alter table customer_details
+modify mobile_no varchar2(15);
+
+
+desc customer_details;
+
+select * from customer_details;
+
+
+insert into customer_details (select * from customer_details_bkp);
+
+
+commit;
+
+
+select * from customer_details_bkp;
+
+
+-- Delete a record
+
+
+delete from customer_details_bkp
+where cust_id=100002;
+
+rollback;
+
+
+drop table customer_details_bkp;
+
+
+select * from CUSTOMER_DETAILS_BKP;
+
+
+truncate table customer;
+
+delete from customer;
+
+commit;
+
+--------------------------------------------------------------------------------
+
+create a 
+
+insert
+
+update
+
+insert
+
+alter
+
+update
+
+insert
+
+alter -- commit
+
+update
+
+insert 
+
+insert
+
+rollback;
+
+how many records will be there in the table? 
+-----------------------------------------------------------
+
+insert into customer_details values (100003,'Vijay',sysdate,9080706050,896745);
+
+select * from customer_details;
+
+--------------------------------------------------------------------------------
+
+Constraints In Oracle:
+======================
+
+Data validation before inserting the data into the table
+
+
+1. Primary Key
+
+  -- It will not allow duplicate record
+  -- It will not allow null
+  -- Only one primary key in a table
+  
+  e.g   emp_id, prod_id, cust_id, user_id, account_no
+
+    composite Key: 
+
+    cust_id+mobile_no   ---> Primary key(cust_id,mobile_no)
+
+ 
+2. Not Null      *mandatory filed
+
+  -- It will not allow null value
+  -- It will allow duplicate
+  
+  e.g  First_name
+
+3. Unique
+
+   -- It will not allow duplicate
+   -- It will allow null  
+  
+  e.g   mobile_no
+
+4. Check
+
+   -- data validation
+   
+   check (age >=18)
+
+5. Foreign Key
+
+
+  --- Relationship between two tables
+  -- It will accept duplicate value
+  -- It should be a primary key in another table
+  -- Any no of foreign key in a table
+  
+  e.g   foreign key (city_id) references city(city_id)
+  
+Violation:
+
+  Integrity constrains violated - parent key not found
+  
+--------------------------------------------------------------------------------
+
+
+create table customer
+(
+cust_id number(6) primary key,
+cust_name varchar2(30) not null,
+mobile_no number(10) unique check (length(mobile_no)=10),
+age number(3) check (age>=18),
+city_id number(4) references city(city_id) 
+);
+
+select * from city;
+
+
+create table city
+(
+city_id number(4),
+city_name varchar2(30)
+);
+
+
+insert into city values (10,'Chennai');
+insert into city values (20,'Pune');
+insert into city values (30,'Hyd');
+insert into city values (40,'Delhi');
+
+
+alter table city add primary key(city_id);
+
+
+select * from city;
+
+
+select * from customer;
+
+
+insert into customer values (100000,'Arun',9090909090,28,20);
+
+
+insert into customer values (100001,'Arun',8080808080,31,30);
+
+
+insert into customer values (100002,'Vijay',5050505050,31,10);
+
+
+insert into customer values (100003,'Ajith',2894738243,13,30);
+
+
+insert into customer values (100004,'Ramesh',2894738789,31,60);
+
+
+commit;
+
+desc customer;
+
+select * from all_constraints where owner='HR' and table_name='CUSTOMER';
+
+select * from all_cons_columns where owner='HR' and table_name='CUSTOMER';
+
+select
+a.owner,a.constraint_name,a.constraint_type,b.table_name,b.column_name
+from all_constraints a , all_cons_columns b where a.constraint_name=b.constraint_name 
+and a.owner='HR' and a.table_name='CUSTOMER';
+
+
+--------------------------------------------------------------------------------
+On delete cascade
+
+ALTER TABLE customer
+drop CONSTRAINT SYS_C009091;
+
+ALTER TABLE customer 
+  ADD CONSTRAINT city_fk 
+  FOREIGN KEY (city_id) 
+  REFERENCES city(city_id) 
+  ON DELETE CASCADE;
+
+
+select * from all_constraints where owner='CORE' and table_name='CUSTOMER';
+
+------------------------------------------------------------------------------------
+--Meta data tables will have all table & column level details
+
+select * from all_tables where owner='HR'; 
+
+select * from all_tab_columns where owner='HR' and column_name='SALARY'; 
+
+------------------------------------------------------------------------------------
+
+
+create table country
+(
+cust_country_code varchar2(2) primary key,
+country_name varchar2(30)
+);
+
+
+insert into country values('IN','India');
+
+insert into country values('IN','USA');
+
+drop table country;
+
+
+
+
+create table customer
+(
+cust_id number(6),
+cust_name varchar2(30) not null,
+mobile_no number(10),
+age number(3) check (age>=18),
+city_id number(4) references city(city_id),
+primary key(cust_id,mobile_no)
+);
+
+insert into customer values (100000,'Arun',9090909090,28,20);
+
+insert into customer values (100000,'Arun',9090909091,28,20);
+
+insert into customer values (100001,'Arun',9090909090,28,20);
+
+select * from customer; 
+
+
+
+-------------------------------------------------------------------------------
+
+select * from employees;
+
+select employee_id,first_name,email,hire_date,salary,department_id from employees;
+
+--column alias
+select employee_id as emp_id,first_name,email,hire_date,salary,department_id from employees;
+
+select employee_id emp_id,first_name,email,hire_date,salary,department_id from employees;
+
+select employee_id emp_id,first_name,email,hire_date salary,department_id from employees;
+
+-- column concatenation
+
+select employee_id ,first_name,last_name,concat(first_name,last_name),email,
+hire_date salary,department_id from employees;
+
+select employee_id ,first_name,last_name,concat(first_name,last_name) full_name,email,
+hire_date ,salary,department_id from employees;
+
+select employee_id ,first_name,last_name,concat(first_name,' ',last_name) full_name,email,
+hire_date ,salary,department_id from employees;
+--ORA-00909: invalid number of arguments
+
+select employee_id ,first_name,last_name,concat(concat(first_name,' '),last_name) full_name,email,
+hire_date ,salary,department_id from employees;
+
+-- alternate way - pipe
+select employee_id emp_id,first_name,last_name,first_name||' '||last_name full_name,email,
+hire_date, salary,department_id from employees;
+
+-- column calculation
+
+select employee_id,first_name,email,hire_date,salary,salary+1000 new_salary,department_id from employees;
+
+select employee_id,first_name,email,hire_date,salary,salary*12 annual_salary,department_id from employees;
+
+-- unique department_id
+
+select department_id from employees;
+
+select count(department_id) from employees;
+
+select distinct department_id from employees;
+
+select count(distinct department_id) from employees;
+
+-- where clause
+
+select * from employees where salary >10000;
+
+select * from employees where salary <3000;
+
+
+select * from employees where salary >5000 and salary <7000;
+
+select * from employees where salary >=5000 and salary <=7000;
+
+select * from employees where salary between 5000 and 7000;
+
+select * from employees where salary not between 5000 and 7000;
+
+
+select * from employees where department_id=30;
+
+select * from employees where department_id=30,60,90;
+-- ORA-00933: SQL command not properly ended
+
+select * from employees where department_id IN (30,60,90);
+
+
+select * from employees where department_id NOT IN (30,50,80);
+
+
+select * from employees where department_id=80 AND salary >10000;
+
+select * from employees where department_id=60 OR salary >15000;
+
+select * from employees where department_id=60 OR (department_id=80 AND salary >10000);
+
+select * from employees where rownum <=5;
+
+select * from employees where rownum =5;  -- Wrong
+
+select * from employees where rownum > 5; -- wrong
+
+
+select rownum,rowid,employee_id,first_name from employees;
+
+select rownum,rowid,* from employees;  --ORA-00936: missing expression
+
+select rownum,rowid,e.* from employees e;
+
+select * from employees where commission_pct is null;
+
+select * from employees where commission_pct is not null;
+
+
+select count(*) from employees;
+
+select count(commission_pct) from employees;
+
+select count(*) from employees where commission_pct is null;
+
+
+select employee_id,hire_date,to_char(hire_date,'yyyy') from employees;
+
+
+select employee_id,hire_date,to_number(to_char(hire_date,'yyyy')) from employees;
+
+
+select employee_id,hire_date,to_number(to_char(hire_date,'mm')) from employees;
+
+
+select employee_id,hire_date,to_char(hire_date,'mon') from employees;
+
+
+select employee_id,hire_date,to_char(hire_date,'Month') from employees;
+
+select employee_id,hire_date,to_char(hire_date,'dd') from employees;
+
+
+select * from employees where to_char(hire_date,'yyyy')='2005';
+
+select * from employees where to_char(hire_date,'mmyyyy') between '092005' and '092006';
+
+select * from employees where to_char(hire_date,'mm')='02';
+
+select * from employees where to_char(hire_date,'mmyyyy')='032005';
+
+select * from employees where to_char(hire_date,'FMDay')='Monday';
+
+select * from employees where to_char(hire_date,'D')='2';
+
+select sysdate from dual;
+
+select current_date from dual;
+
+select sysdate from employees;
+
+select systimestamp from dual;
+------------------------------------------------------------------ pattern matching  -- like 
+
+select * from employees where first_name like 'A%';
+
+select * from employees where first_name like '%s';
+
+select * from employees where first_name like '%an%';
+
+select * from employees where first_name like 'S%n';
+
+select * from employees where first_name like '______';
+
+select * from employees where first_name like '_a____';
+
+select * from employees where first_name like '_a_t__';
+
+
+select * from employees;
+
+select * from employees order by first_name;
+
+select * from employees order by first_name desc;
+
+select * from employees order by salary;
+
+select * from employees order by salary desc;
+
+select * from employees order by salary desc,hire_date;
+
+select * from employees order by 8;
+
+select * from employees order by 6,8 desc;
+
+--------------------------------------------------------------------------------
+Single Row functions in Oracle:
+===============================
+
+select first_name,upper(first_name),lower(first_name),initcap(first_name),
+length(first_name),reverse(first_name) from employees;
+
+select address,lower(address) from customer_details;
+
+select address from customer_details where lower(ADDRESS)='chennai';
+
+select * from customer_details where address ='chennai';
+
+select * from customer_details where lower(address) ='chennai';
+
+select * from customer_details where upper(address) ='CHENNAI';
+
+--------------------------------------------------------------------------------
+
+substr(string,from_position,no_of_char);    -- 3 argument
+
+substr(string,from_position);    -- 2 argument
+
+
+select substr('Welcome to India!!!',12,5) from dual;
+
+select substr('Welcome to India!!!',12) from dual;
+
+select substr('Welcome to India!!!',-8) from dual;
+
+select substr('Welcome to India!!!',-8,5) from dual;
+
+select job_id,substr(job_id,1,4) from employees;
+
+
+
+-- Instr will return the position of the character
+
+
+
+select INSTR('CORPORATE FLOOR','R') from dual;
+
+select INSTR('CORPORATE FLOOR','AB') from dual;
+
+-- from 3rd position 2nd occurance
+select INSTR('CORPORATE FLOOR','OR',3,2) from dual;
+
+select INSTR('CORPORATE FLOOR','OR',3,1) from dual;
+
+select substr('When system dialog prompts, click Open Zoom Meetings.',1,
+instr('When system dialog prompts, click Open Zoom Meetings.',',')-1) from dual;
+
+select substr('sample@gmail.com', 1, instr('sample@gmail.com', '@')-1) from dual;
+
+select substr('abc@gmail.com', 1, instr('abc@gmail.com', '@')-1) from dual;
+
+
+select INSTR('CORPORATE FLOOR GARDEN',' ') from dual;
+
+select substr('CORPORATE FLOOR GARDEN',17) from dual;
+
+select instr('CORPORATE FLOOR GARDEN',' ',1,2) from dual;
+
+select substr('CORPORATE FLOOR GARDEN',instr('CORPORATE FLOOR GARDEN',' ',1,2)+1) from dual;
+
+select substr('WELCOME TO CHENNAI CHROMPET',instr('WELCOME TO CHENNAI CHROMPET',' ',1,3)+1) from dual;
+
+select substr('asfdfadsfad@gmail.com', 1, instr('asfdfadsfad@gmail.com','@')-1) from dual;
+
+
+
+
+
+
+select LPAD('WELCOME',15,'*') from dual;
+
+select RPAD('WELCOME',15,'*') from dual;
+
+select LPAD(RPAD('WELCOME',15,'*'),30,'*') from dual;
+
+select salary,LPAD(salary,15,0) from employees;
+
+-------------------------------------------------------
+
+
+select substr('WELCOME TO ORACLE PLSQL',instr('WELCOME TO ORACLE PLSQL',' ',1,3)+1) from dual;
+
+instr('WELCOME TO ORACLE PLSQL',' ',1,3)  -- Returns the position of char from 1st to 3rd occurance  so 18
+
+18+1 -- 19
+
+substr('WELCOME TO ORACLE PLSQL',19) -- from 19th position to right hand side.
+
+so PLSQL is the answer
+
+------------------------------------------------------
+
+Consider the below column value
+
+Welcome to CHENNAI CHROMPET
+WELCOME to BANGALURU ITPL
+Welcome to MUMBAI KALYAN
+
+
+Write one query to fetch only city value from the string
+
+output should be:
+
+CHENNAI
+BANGALURU
+MUMBAI
+
+----------------------------------------------------------------------------------
+
+select LTRIM('         Welcome') from dual;
+
+
+select RTRIM('         Welcome      ') from dual;
+
+select TRIM('                              Wel come      ') from dual;
+
+select LTRIM('00000000000100123', '0') from dual;
+
+select LTRIM('00101233234345354650121211', '021') from dual;
+
+select RTRIM('00101233234345354650121211', '021') from dual;
+
+select LTRIM(RTRIM('00101233234345354650121211', '021'),'021') from dual;
+
+
+select REPLACE('JACK and JUE','J','BL') from dual;
+
+select REPLACE(JOB,'MANAGER','BOSS') from EMP;
+
+job:
+===
+Manager        BOSS
+manager        BOSS
+MANAGER        BOSS
+
+select REPLACE(upper(JOB),'MANAGER','BOSS') from EMP;
+
+select phone_number,replace(phone_number,'.',null) from employees;
+
+
+translate - position wise translation
+
+
+ABCD    XYZ
+
+A--> X
+B--> Y
+C--> Z
+D--> NUll
+
+
+WBADCS    --> WYXZS
+
+select translate('WELCOME TO CHENNAI','ABCDEF','WXYZ') from dual;
+
+A  W
+B  X
+C  Y
+D  Z
+E  null
+F  null
+
+WLYOM TO YHNNWI
+
+---------------------------------------------------------------------------------------------
+Dealing with Null values: 
+
+Any arithmatic operations on null values results null
+
+value*null ==> null
+value+null ==> null
+value-null ==> null
+
+-------------------------------------------------------------------
+
+NVL   - 2 arg
+NVL2  - 3 arg
+Nullif - 2 arg
+Coalesce  - n arg
+
+
+
+NVL(arg1,arg2)
+
+   if arg1 is null ---> arg2
+   if arg1 is not null --> arg1
+
+select NVL(5,6) from dual;  -- 5
+
+select NVL(null,6) from dual; --6
+
+
+select * from employees;
+
+
+select employee_id,salary,commission_pct,salary+(salary*commission_pct) total_salary from employees;
+
+select employee_id,salary,commission_pct,salary+(salary*nvL(commission_pct,0)) total_salary from employees;
+
+
+NVL2(arg1,arg2,arg3)
+
+   if arg1 is null ---> arg3
+   if arg1 is not null --> arg2
+
+select nvl2(4,8,12) from dual;  --8
+
+select nvl2(null,8,12) from dual; -- 12
+
+select * from employee;
+
+select employee_id,emp_name,allocation_id,nvl2(allocation_id,'Allocated','Waiting for project') allocation_status 
+from employee;
+-----------------------------------------------------------
+
+nullif(arg1,arg2)
+
+   if arg1=arg2   ---> null
+   if arg1 != arg2   ---> arg1
+
+select nullif(5,8) from dual; --5
+
+select nullif(8,8) from dual; -- null
+
+select first_name,last_name from employees where first_name=last_name;
+
+select first_name,last_name from employees where nullif(first_name,last_name) is null;
+
+
+-----------------------------------------------------------
+
+
+
+coalesce(arg1,arg2,arg3.. ..arg_n)
+
+  -- It will return first not null value
+
+
+COALESCE  -- It will always return first not null value
+
+select commission_pct,manager_id,department_id from employees;
+
+
+select commission_pct,manager_id,department_id,
+COALESCE(commission_pct,manager_id,department_id,0) from employees;
+
+select employee_id,salary,commission_pct,salary+(salary*COALESCE(commission_pct,0)) total_salary from employees;
+
+select coalesce(mobile_no,office_no,resi_no,'no_phone_number') from dual;
+
+--------------------------------------------------------------------------------
+
+select  round(0.7) from dual;
+
+select  round(2.8) from dual;
+
+select  round(4.35) from dual;
+
+select  round(5435.7878) from dual;
+
+select  round(5435.3878) from dual;
+
+select  round(5435.7878,2) from dual;
+
+select  round(5435.9978,2) from dual;
+
+select  round(5435.783258,3) from dual;
+
+select  round(5435.783258,4) from dual;
+
+
+
+----------------------------------------------------
+-- Trunc will always take base value
+
+
+select  trunc(0.7878) from dual;
+
+select  trunc(5435.7878) from dual;
+
+select  trunc(5435.3878) from dual;
+
+select  trunc(5435.7878,2) from dual;
+
+select  trunc(5435.783258,3) from dual;
+
+select  trunc(5435.783258,4) from dual;
+
+
+-- it will remove timestamp from a date&time, returns date part alone
+
+select SYSTIMESTAMP from dual;
+
+select trunc(SYSTIMESTAMP) from dual;
+
+--------------------------------------------------------------
+
+ceil  -- always top value
+Floor - Always base value
+
+select floor(5.99999999) from dual;
+
+select floor(5.000000999) from dual;
+
+select ceil(5.99999999) from dual;
+
+select ceil(5.000000001) from dual;
+
+
+what is the difference between trunc and floor?
+
+------------------------------------------------------------
+-- mod returns reminder in the division operation
+
+select mod(55,4) from dual;    -- 55/4 reminder 3
+
+select mod(55,3) from dual;   --55/3   reminder 1
+
+-- leap year of hire_date
+select * from employees where mod(to_char(hire_date,'yyyy'),4)=0;
+
+-- even number of employee_id
+select * from employees where mod(employee_id,2)=0;
+
+
+----------------------------------------------------------------------------
+months between two dates
+
+-- MONTHS_BETWEEN(date1,date2)
+
+select  MONTHS_BETWEEN (TO_DATE ('2020/01/01', 'yyyy/mm/dd'), TO_DATE ('2010/01/01', 'yyyy/mm/dd') ) total_months from dual;
+
+
+select months_between(sysdate, TO_DATE ('2000/01/01', 'yyyy/mm/dd')) from dual;
+
+-- days between two dates
+
+select date2 - date1 total_days from dual;
+
+select TO_DATE ('2017/01/01', 'yyyy/mm/dd')- TO_DATE ('2014/01/01', 'yyyy/mm/dd') from dual;
+
+
+
+
+------------------------------------------------------------------------------------
+-- next weekday of given date
+
+select NEXT_DAY('31-Mar-20', 'FRIDAY') from dual;
+
+select next_day(sysdate,'Thursday') from dual;
+
+-- last day of given month
+
+select LAST_DAY(sysdate) from dual;
+
+select LAST_DAY(sysdate+25) from dual;
+
+
+sysdate=last_day(sysdate)
+
+-- add_months(date,number_of_months) 
+
+select ADD_MONTHS('01-Aug-03', 3) from dual;
+
+
+select ADD_MONTHS(sysdate, 60) from dual;
+
+
+-------------------------------------------------------------------------------
+Round and truncate of Dates:
+
+
+Year
+Q
+Month
+Day
+
+
+
+
+year --> half + half ====>  6 months + 6 months 
+
+if any date falls on first half of the 6 month --> first_day of the year
+
+if any date falls on second half of the year (second six months) --> first_day of the next year
+
+
+
+
+select ROUND(TO_DATE ('22-AUG-21'),'YEAR') from dual;
+
+select ROUND(TO_DATE ('22-Apr-21'),'YEAR') from dual;
+
+select ROUND(sysdate,'YEAR') from dual;
+
+-- Last day of the year
+
+select ROUND(sysdate,'YEAR')+360 from dual;
+
+select last_day(ROUND(TO_DATE ('22-Apr-21'),'YEAR')+360) from dual;
+
+
+
+
+Quarter ==> 90 days ==> 45 days + next 45 days
+
+
+if any date falls on first half of the Quarter --> first_day of the quarter
+
+if any date falls on second half of the Quarter (second 45 days) --> first_day of the next quarter
+
+e.g   JAN  FEB  MAR ==> Jan 1 to Feb 14 --> first half of the Q
+                        Feb 15 to March 31 --> second half of the Q
+
+
+select ROUND(TO_DATE ('22-AUG-16'),'Q') from dual;
+-- jul,aug,sep --> 2nd half of Q3 --> first day of Q4
+
+
+select ROUND(TO_DATE ('13-Apr-20'),'Q') from dual;
+
+
+select ROUND(TO_DATE ('02-NOV-20'),'Q') from dual;
+
+
+select ROUND(TO_DATE ('22-AUG-16'),'MONTH') from dual;
+
+
+select ROUND(TO_DATE ('13-Apr-16'),'MONTH') from dual;
+
+
+select ROUND(TO_DATE ('02-NOV-16'),'MONTH') from dual;
+
+-- Weekday  3.5 days
+
+ Sun  Mon  Tue  Wed+    Wed(12hrs)  Thur  Fri Sat  Sun
+
+ 
+
+select ROUND(TO_DATE ('22-AUG-16'),'DAY') from dual;
+
+
+select ROUND(sysdate+4,'DAY') from dual;
+
+
+select ROUND(TO_DATE ('30-NOV-16'),'DAY') from dual;
+
+
+---------------------------------------------------------------------------------
+
+select TRUNC(TO_DATE ('22-AUG-16'),'YEAR') from dual;
+
+
+select TRUNC(TO_DATE ('22-Apr-16'),'YEAR') from dual;
+
+
+select TRUNC(TO_DATE ('22-AUG-16'),'Q') from dual;
+
+
+select TRUNC(TO_DATE ('13-Apr-16'),'Q') from dual;
+
+
+select TRUNC(TO_DATE ('02-NOV-16'),'Q') from dual;
+
+select TRUNC(TO_DATE ('22-AUG-16'),'MONTH') from dual;
+
+
+select TRUNC(TO_DATE ('13-Apr-16'),'MONTH') from dual;
+
+
+select TRUNC(TO_DATE ('02-NOV-16'),'MONTH') from dual;
+
+
+select TRUNC(TO_DATE ('22-AUG-16'),'DAY') from dual;
+
+
+select TRUNC(sysdate+5,'DAY') from dual;
+
+
+select TRUNC(TO_DATE ('30-NOV-16'),'DAY') from dual;
+
+select sysdate+3   from dual;
+
+------------------------------------------------------------------------
+
+first day of the month:
+=======================
+
+
+select to_date(to_char(sysdate,'yyyymm')||'01','yyyymmdd') from dual;
+
+select TRUNC(sysdate,'Month') from dual;
+
+select trunc(LAST_DAY(sysdate),'Month') from dual;
+
+select last_day(ADD_MONTHS(sysdate, -1))+1 from dual;
+
+
+find first day and last day of quarter: 
+======================================
+
+select TRUNC(sysdate,'Q') from dual;
+
+select last_day(TRUNC(sysdate,'Q')+75) from dual;
+
+select last_day(TRUNC(TO_DATE ('13-Apr-16'),'Q')+75) from dual;
+
+
+
+
+Find First and Last Day of the last Quarter in ORACLE
+=====================================================
+
+SELECT
+  ADD_MONTHS(TRUNC(SYSDATE, 'Q'), -3) AS First,
+  TRUNC(SYSDATE, 'Q') - 1 AS Last
+FROM DUAL;
+
+-----------------------------------------------------------------------------------
+
+
+
+select TO_CHAR(1210.73, '9999.9') from dual;
+
+
+select TO_CHAR(1210.78, '$9999.9') from dual;
+
+select TO_CHAR(1210.73, '$9,999.999') from dual;
+
+select TO_CHAR(sysdate, 'yyyy/mm/dd') from dual;
+
+select TO_CHAR(sysdate, 'Mon-ddth-yyyy') from dual;
+
+select TO_CHAR(sysdate, 'MM-ddth-yyyy') from dual;
+
+select to_number(TO_CHAR(sysdate, 'mmddyyyy'))+1 from dual;
+
+select to_char(sysdate+1,'mmddyyyy') from dual;
+
+select TO_CHAR(sysdate, 'HH24:MI:SS') from dual;
+
+select TO_CHAR(sysdate, 'mm/dd/yyyy HH24:MI:SS') from dual;
+
+select TO_CHAR(sysdate, 'HH12:MI:SS AM') from dual;
+
+
+--------------------------------------------------------------------------------
+select abs(-354) from dual;
+
+--------------------------------------------------------------------------------
+
+decode
+
+The DECODE function in Oracle allows you to have IF-THEN-ELSE logic in your SQL statements. 
+The expression is the value to compare. Many combinations of search and result 
+can be supplied. Search is compared against the expression, and if it is true, then result is returned
+
+
+City       New_city
+
+Madras     Chennai
+Calkatta   Kolkatta
+Bombay     Mumbai
+Orissa     Odisa
+
+any other city  -- > city
+
+
+decode(city,'Madras','Chennai','calcatta','Kolkatta','Bombay','Mumbai','Orissa','Odissa',city) new_city
+
+
+select subject_id,
+decode(subject_id,1,'Mathematics',2,'Physics',3,'Chemistry') subject_name
+from students;
+
+
+-------------------------------------------------------------------------------------------------------------
+Case:
+
+case when condition1 then statement1
+     when condition2 then statement2
+     when condition3 then statement3
+else
+     statement
+end;
+
+salary_status:
+--------------
+
+salary < 5000   Low salary 
+salary >= 5000 <15000  Avg salary
+salary >=15000 high salary
+
+
+select employee_id,first_name,salary,
+case 
+when salary < 5000 then  'Low salary' 
+when salary >= 5000 and salary <15000 then 'Avg salary'
+else 'High Salary' end salary_status 
+from employees;
+
+select count(case when salary < 5000 then  'Low salary' end ) as low_salary_count,
+count(case when salary >= 5000 and salary <15000 then  'Avg salary' end ) as avg_salary_count,
+count(case when salary >= 15000 then  'high salary' end ) as high_salary_count
+from employees;
+
+select sum (case when id >= 0 then id end) as positive,
+       sum (case when id < 0 then id end) as negative
+from customer2;
+
+example: 
+
+Transaction_status_code to Transaction_status:
+
+'S' Success
+F Failed
+P - pending
+U unknown
+
+==============================================================================================================
+
+-- Exercise
+-- Find second saturday of the given month
+
+
+SELECT NEXT_DAY(NEXT_DAY((TRUNC(TO_DATE('01-MAR-2019', 'DD-MON-YYYY'),
+                                'MONTH') - 1),
+                         'SATURDAY'),
+                'SATURDAY') SECOND_SATURDAY
+  FROM DUAL;
+  
+==============================================================================================================
+Joins in Oracle: 
+================
+
+Equi join - An equi join is a type of join that combines tables 
+based on matching values in specified columns.
+
+Non-Equi join - The nonequijoins is such a join which match column 
+values from different tables based on an inequality 
+(instead of the equal sign like >, <, >=, <= ) expression
+
+
+4 Types of Equi join:
+=====================
+
+Inner Join
+Left Outer join
+Right Outer Join
+Full Outer Join
+
+
+2 methods to write join query: 
+==============================
+
+1. Implicit method
+2. ANSI Method
+
+
+Table scripts for practice: 
+***************************
+
+create table customer
+(
+cust_id	number,
+cust_name	varchar2(50),
+mob_no	number(10),
+email	varchar2(50),
+country_id number(3)
+);
+
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1000,'Kannan',8989898989,'kannan@gmail.com',200);
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1001,'Arun',8989898990,'arun@gmail.com',204);
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1002,'Karthik',8989898991,'Karthik@gmail.com',202);
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1003,'Shankar',8989898992,'shankar@gmail.com',203);
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1004,'Sree',8989898993,'Sree@gmail.com',205);
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1005,'Babu',8989898994,'Babu@gmail.com',200);
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1006,'Radha',8989898995,'Radha@gmail.com',202);
+Insert into customer (CUST_ID,CUST_NAME,MOB_NO,EMAIL,COUNTRY_ID) values (1007,'Senthil',8989898996,'Senthil@gmail.com',200);
+
+
+commit;
+
+
+create table country
+(
+Country_id	number(3),
+Country_name varchar2(50)
+);
+
+Insert into country (COUNTRY_ID,COUNTRY_NAME) values (200,'INDIA');
+Insert into country (COUNTRY_ID,COUNTRY_NAME) values (201,'CHINA');
+Insert into country (COUNTRY_ID,COUNTRY_NAME) values (202,'USA');
+Insert into country (COUNTRY_ID,COUNTRY_NAME) values (203,'SINGAPORE');
+Insert into country (COUNTRY_ID,COUNTRY_NAME) values (204,'UK');
+
+commit;
+
+============================================
+
+Inner Join:
+------------
+
+  -- implicit method
+
+select
+c.cust_id,
+c.cust_name,
+c.mobile_no,
+c.email,
+c.country_id,
+r.country_name
+from customer c, region r
+where c.country_id=r.country_id;
+
+
+Inner Join:
+------------
+  -- ANSI Method
+
+
+select
+c.cust_id,
+c.cust_name,
+c.mobile_no,
+c.email,
+c.country_id,
+r.country_name
+from customer c inner join region r
+on c.country_id=r.country_id;
+
+*******************************************************
+
+Left Outer Join:
+------------
+  -- implicit
+
+
+select
+c.cust_id,
+c.cust_name,
+c.mobile_no,
+c.email,
+c.country_id,
+r.country_name
+from customer c, region r
+where c.country_id=r.country_id(+);
+
+
+Left Outer Join:
+------------
+  -- ANSI
+
+
+select
+c.cust_id,
+c.cust_name,
+c.mobile_no,
+c.email,
+c.country_id,
+r.country_name
+from customer c Left Outer join region r
+on c.country_id=r.country_id;
+
+
+***************************************************************
+
+
+Right Outer Join:
+------------
+  -- implicit
+
+
+select
+c.cust_id,
+c.cust_name,
+c.mobile_no,
+c.email,
+c.country_id,
+r.country_name
+from customer c, region r
+where c.country_id(+)=r.country_id;
+
+
+Right Outer Join:
+------------
+  -- ANSI
+
+
+select
+c.cust_id,
+c.cust_name,
+c.mobile_no,
+c.email,
+c.country_id,
+r.country_name
+from customer c Right Outer join region r
+on c.country_id=r.country_id;
+
+*****************************************************
+
+Full Outer Join:
+------------
+  -- ANSI
+
+
+select
+c.cust_id,
+c.cust_name,
+c.mobile_no,
+c.email,
+c.country_id,
+r.country_name
+from customer c Full Outer join region r
+on c.country_id=r.country_id;
+
+
+*********************************************************
+
+3 tables  -- customer   city    country
+
+
+select
+c1.cust_id,
+c1.cust_name,
+c1.mob_no,
+c1.email,
+c1.city_id,
+c2.city_name,
+c2.region_id country_id,
+c3.country_name
+from customer c1,city c2, country c3
+where c1.city_id=c2.city_id 
+and c2.region_id=c3.country_id;
+
+
+
+
+select
+c1.cust_id,
+c1.cust_name,
+c1.mob_no,
+c1.email,
+c1.city_id,
+c2.city_name,
+c2.region_id country_id,
+c3.country_name
+from customer c1 inner join city c2
+on c1.city_id=c2.city_id
+inner join country c3
+on c2.region_id=c3.country_id;
+
+*************************************************************
+
+select * from employees;
+
+select * from departments;
+
+select
+e.employee_id,
+e.first_name,
+e.email,
+e.SALARY,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.LOCATION_ID
+from Employees e,departments d
+where e.department_id=d.department_id;
+
+
+select
+e.employee_id,
+e.first_name,
+e.email,
+e.SALARY,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.LOCATION_ID
+from employees e inner join DEPARTMENTS d
+on e.department_id=d.department_id;
+
+
+-- Left Outer Join
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME
+from employees e, departments d
+where e.department_id=d.department_id(+);
+
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME
+from employees e left join departments d
+on e.department_id=d.department_id;
+
+----------------------------------------------------
+
+-- Right outer join
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+d.department_id,
+d.DEPARTMENT_NAME
+from employees e, departments d
+where e.department_id(+)=d.department_id;
+
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME
+from employees e right join departments d
+on e.department_id=d.department_id;
+
+-- Full Outer Join
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME
+from employees e full join departments d
+on e.department_id=d.department_id;
+
+********************************************************************************
+
+select the departmet_id where no employees are working
+
+select
+d.department_id,
+d.DEPARTMENT_NAME
+from employees e, departments d
+where e.department_id(+)=d.department_id and e.employee_id is null;
+
+================================================================================
+
+3 tables join
+
+select * from locations;
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.location_id,
+l.country_id
+from employees e, departments d, locations l
+where e.department_id=d.department_id and d.location_id=l.location_id and l.country_id='UK';
+
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.location_id,
+l.country_id
+from employees e inner join departments d
+on e.department_id=d.department_id 
+inner join locations l 
+on  d.location_id=l.location_id and l.country_id='CA' and e.salary >10000;
+
+
+
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.location_id,
+l.country_id,
+c.COUNTRY_NAME
+from employees e inner join departments d
+on e.department_id=d.department_id 
+inner join locations l 
+on  d.location_id=l.location_id 
+inner join COUNTRIES c on l.COUNTRY_ID=c.COUNTRY_ID
+where l.country_id='CA' and e.salary >10000;
+
+--------------------------------------------
+4 tables join with sub query:
+=============================
+select
+e.employee_id,
+e.first_name,
+e.job_id,
+e.salary,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.location_id,
+l.country_id,
+c.country_name
+from employees e inner join (select department_id,department_name,location_id from departments) d
+on e.department_id=d.department_id
+join locations l
+on d.location_id=l.location_id
+join countries c
+on l.country_id=c.country_id where c.country_name='United Kingdom' and e.salary >10000;
+
+
+--------------------------------------------------------------------------------
+
+--Cross Join or Cartesian product
+
+select * from departments;
+select
+e.employee_id,
+e.first_name,
+e.email,
+e.SALARY,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.LOCATION_ID
+from employees e, departments d
+--where e.department_id=d.department_id;
+
+107*27=2889
+
+--------------------------------------------------------------------------------
+self Join
+
+
+select * from employees;
+
+
+select
+e1.employee_id,
+e1.first_name,
+'reports to',
+e2.employee_id,
+e2.first_name
+from employees e1,employees e2
+where e1.manager_id=e2.employee_id order by e1.employee_id;
+
+--------------------------------------------------------------------
+
+--Non-Equi Join
+
+select
+e.employee_id,
+e.first_name,
+e.email,
+e.SALARY,
+e.department_id,
+d.DEPARTMENT_NAME,
+d.LOCATION_ID
+from employees e, departments d
+where e.department_id!=d.department_id;
+
+
+Aggregate Functions:
+=================
+
+select max(salary) from employees;
+select min(salary) from employees;
+select sum(salary) from employees;
+select count(salary) from employees;
+select avg(salary) from employees;
+
+
+--------------------------------------------------
+-- We can't select non-aggregate column with aggregate column. 
+
+select first_name,max(salary) from employees;
+ORA-00937: not a single-group group function
+
+
+select first_name,max(salary) from employees group by first_name;
+-- wrong
+
+select department_id,max(salary) from employees group by department_id;
+
+whenever we want to use wise keyword, use group by.  
+
+Filter condition on resultant of group by clause - We have to use having clause. 
+
+Having clause is always come with group by   group by  + having 
+
+
+select department_id,sum(salary) from employees group by department_id;
+
+
+select department_id,sum(salary) from  employees group by department_id having sum(salary) >50000;
+
+select first_name,max(salary) from employees;
+--ORA-00937: not a single-group group function
+
+select first_name,max(salary) from employees group by first_name;
+-- wrong logic
+
+select department_id,sum(salary) from employees where department_id is not null
+group by department_id having sum(salary) >50000 order by 1;
+
+The order of keywords in any oracle SQL statement. 
+
+1.from
+2.where
+3.group by
+4.having
+5.order by
+
+select e.department_id,d.department_name, sum(salary) 
+from employees e , departments d
+where e.department_id=d.department_id and e.department_id is not null
+group by e.department_id,d.department_name
+having sum(salary) >50000 order by 1;
+
+--select the department where more than 30 employees are working;
+
+select e.department_id,d.department_name,count(*) 
+from employees e inner join departments d
+on e.department_id=d.department_id 
+group by e.department_id, d.department_name having count(*) > 30;
+
+--Analtical Functions:
+
+
+Rank()
+Dense_rank()
+Lead()
+Lag()
+
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+rank() over(order by salary) RANK from employees;
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+rank() over(order by salary desc) RANK from employees;
+
+--dense rank()
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+dense_rank() over(order by salary) RANK from employees;
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+dense_rank() over(order by salary desc) RANK from employees;
+
+--------------------------------------------------------------------------------
+
+group by == > Partition by
+
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+rank() over(partition by department_id order by salary) RANK from employees;
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+rank() over(partition by department_id order by salary desc) RANK from employees;
+
+---------------------------------------------------------------------------------
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+dense_rank() over(partition by department_id order by salary) RANK from employees;
+
+select employee_id,first_name,email,phone_number,salary,department_id,
+dense_rank() over(partition by department_id order by salary desc) RANK from employees;
+
+-----------------------------------------------------------------------------------
+--Least 5 salaried employees
+select employee_id,first_name,email,phone_number,salary,department_id,rank from
+(select employee_id,first_name,email,phone_number,salary,department_id,
+rank() over(order by salary) RANK from employees) where rank <=5;
+
+-- Top 5 earners
+select employee_id,first_name,email,phone_number,salary,department_id,rank from
+(select employee_id,first_name,email,phone_number,salary,department_id,
+rank() over(order by salary desc) RANK from employees)  where rank <=5;
+
+
+--------------------------------------------------------------------------------
+
+--Least 5 salaried employees
+select employee_id,first_name,email,phone_number,salary,department_id,rank from
+(select employee_id,first_name,email,phone_number,salary,department_id,
+dense_rank() over(order by salary) RANK from employees) where rank <=5;
+
+-- Top 5 earners
+select employee_id,first_name,email,phone_number,salary,department_id,rank from
+(select employee_id,first_name,email,phone_number,salary,department_id,
+dense_rank() over(order by salary desc) RANK from employees)  where rank <=5;
+
+--------------------------------------------------------------------------------
+
+-- Top 5 earners with department_name
+
+select a.employee_id,
+a.first_name,
+a.email,
+a.phone_number,
+a.salary,
+a.department_id,
+d.department_name,
+a.rank from
+(select employee_id,first_name,email,phone_number,salary,department_id,
+rank() over(order by salary desc) "RANK" from employees) a inner join departments d
+on a.department_id=d.department_id where a.rank <=5 order by a.rank;
+
+--------------------------------------------------------------------------------
+
+100
+
+middle record
+
+
+select * from employees where rownum <=5;
+
+107
+
+select sount(rownum)=count(rownum)/2; 
+
+
+select rownum,e.* from employees e where rownum <=(select round(count(*)/2) from employees)
+minus
+select rownum,e.*  from employees e where rownum <(select round(count(*)/2) from employees);
+
+
+select * from employees;
+
+--------------------------------------------------------------------------------
+
+Lead()
+Lag()
+
+select employee_id,first_name,email,phone_number,hire_date,salary,department_id,
+lead (hire_date) over(order by hire_date) after_hire,
+lead (first_name) over(order by hire_date) after_hire from employees;
+
+
+select * from (
+select employee_id,first_name,email,phone_number,hire_date,salary,department_id,
+lag (hire_date) over(order by hire_date) before_hire_date,
+lag (first_name) over(order by hire_date) before_hire_name from employees) where employee_id=142;
+
+--------------------------------------------------------------------------------------------
+
+select employee_id,first_name,email,phone_number,hire_date,salary,department_id,
+lead (FIRST_NAME) over(order by salary) high_salary_person,
+lead (salary) over(order by salary) high_salary from employees;
+
+---------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
